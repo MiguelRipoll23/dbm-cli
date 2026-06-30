@@ -1,14 +1,14 @@
 # db-cli
 
-`db-cli` is a command-line tool for managing and connecting to relational databases. It stores connection configurations locally in a JSON file (in the OS config directory) and retrieves passwords at connect time from a [KeePassXC](https://keepassxc.org/) vault via the `keepassxc-cli` binary, so that credentials are never stored on disk. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the password injected in the way each client expects.
+`db-cli` is a command-line tool for managing and connecting to relational databases across multiple environments. It stores connection configurations locally in `~/.db-cli/connections.json` and retrieves passwords at connect time from a running [KeePassXC](https://keepassxc.org/) instance via its Browser Extension IPC socket, so that credentials are never stored on disk. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the password injected in the way each client expects.
 
 ---
 
 ## Prerequisites
 
 - **Node.js 20+**
-- **`keepassxc-cli`** available on `PATH` (ships with KeePassXC)
-- The relevant vendor client binary available on `PATH` for each engine you intend to use:
+- **KeePassXC** running and unlocked (Browser Integration must be enabled in KeePassXC settings)
+- The relevant vendor client binary available on `PATH` (or installed via `db-cli client-install`) for each engine you intend to use:
 
 | Engine     | Required binary |
 |------------|-----------------|
@@ -29,8 +29,6 @@ npm install -g .
 node ./dist/index.js <command>
 ```
 
-After a global install the `db-cli` command is available everywhere.
-
 ---
 
 ## Usage
@@ -39,6 +37,18 @@ After a global install the `db-cli` command is available everywhere.
 
 ```bash
 db-cli list
+db-cli list --env production   # filter by environment
+```
+
+Output is grouped by connection name, showing each environment as a row:
+
+```
+● mydb  [postgres]
+  development   dev.host:5432/mydb_dev
+  production    prod.host:5432/mydb
+
+● reporting  [mssql]
+  staging       sql.host:1433/reports   [read-only]
 ```
 
 ### Create a connection
@@ -50,69 +60,100 @@ db-cli create \
   --host localhost \
   --port 5432 \
   --database myapp \
-  --username admin \
-  --keepass-db /path/to/vault.kdbx \
-  --keepass-entry "Databases/myapp"
+  --environment development
 ```
+
+After creation you will be prompted to store the database password in KeePassXC. You can also manage credentials later with `keepass-store`.
 
 ### Update an existing connection
 
 ```bash
-db-cli update mydb --host newhost --port 5433
+db-cli update mydb development --host newhost --port 5433
 ```
+
+`environment` is the second positional argument — it identifies which environment entry to update. Engine cannot be changed via update; delete and recreate if needed.
 
 ### Delete a connection
 
 ```bash
-db-cli delete mydb
+db-cli delete mydb development
 ```
+
+Deletes only the specified environment entry. Other environments of the same connection name are unaffected.
 
 ### Connect to a database
 
 ```bash
-db-cli connect mydb
+db-cli connect mydb                  # defaults to development
+db-cli connect mydb production       # explicit environment
+db-cli connect mydb -e "SELECT 1"    # run a query non-interactively
 ```
 
-This fetches the password from KeePassXC and spawns the vendor client in your terminal.
+Connecting to `production` requires typing `yes` at a confirmation prompt. If no entry is found for the given environment, available environments are shown.
+
+### Store or update KeePassXC credentials
+
+```bash
+db-cli keepass-store mydb development
+db-cli keepass-store mydb production --generate   # auto-generate password
+```
+
+### Install database client binaries
+
+```bash
+db-cli client-install postgres   # download psql to ~/.db-cli/clients/
+```
 
 ---
 
 ## KeePassXC Setup
 
-`db-cli` uses `keepassxc-cli` to retrieve passwords from your KeePassXC vault at connect time. You need to provide the master password so it can unlock the vault.
+`db-cli` uses the KeePassXC Browser Extension IPC protocol to retrieve passwords at connect time. No master password is needed — KeePassXC must be running and unlocked.
 
-**Option 1 — environment variable (recommended for scripting or CI):**
+On first use, KeePassXC will display an association request dialog. Accept it to allow `db-cli` to read credentials. The association is cached in `~/.db-cli/keepassxc-socket.json` and reused on subsequent calls.
 
-```bash
-export KEEPASSXC_MASTER="your-master-password"
-db-cli connect mydb
-```
-
-**Option 2 — interactive prompt:**
-
-If `KEEPASSXC_MASTER` is not set, `db-cli` will prompt you for the master password at connect time. Input is masked (characters are not echoed to the terminal).
+Credentials are stored in KeePassXC under:
+- **URL:** `db-cli://<name>:<environment>` (e.g. `db-cli://mydb:development`)
+- **Group:** `db-cli`
 
 ---
 
 ## Supported Engines
 
-| Engine     | Client binary | Password injection          |
-|------------|---------------|-----------------------------|
-| `mssql`    | `sqlcmd`      | `SQLCMDPASSWORD` env var    |
-| `oracle`   | `sqlplus`     | `CONNECT` string via stdin  |
-| `mariadb`  | `mariadb`     | `MYSQL_PWD` env var         |
-| `postgres` | `psql`        | `PGPASSWORD` env var        |
+| Engine     | Client binary | Password injection          | Read-only support      |
+|------------|---------------|-----------------------------|------------------------|
+| `mssql`    | `sqlcmd`      | `SQLCMDPASSWORD` env var    | Not enforced by client |
+| `oracle`   | `sqlplus`     | `CONNECT` string via stdin  | Not enforced by client |
+| `mariadb`  | `mariadb`     | `MYSQL_PWD` env var         | Session `SET transaction_read_only` |
+| `postgres` | `psql`        | `PGPASSWORD` env var        | `PGOPTIONS` env var    |
 
 ---
 
 ## Configuration Storage
 
-Connection configurations are stored in a JSON file inside the OS config directory:
+All files are stored under `~/.db-cli/`:
 
-- **Linux / macOS:** `~/.config/db-cli/connections.json`
-- **Windows:** `%APPDATA%\db-cli\connections.json`
+| File | Contents |
+|------|----------|
+| `connections.json` | Connection metadata (no passwords) |
+| `keepassxc-socket.json` | KeePassXC association cache |
+| `clients/` | Database client binaries installed via `client-install` |
 
-Passwords are never written to this file.
+`connections.json` format:
+
+```json
+{
+  "mydb": {
+    "engine": "postgres",
+    "environments": {
+      "development": { "host": "dev.host", "port": 5432, "database": "mydb_dev" },
+      "production":  { "host": "prod.host", "port": 5432, "database": "mydb" }
+    }
+  }
+}
+```
+
+Passwords are never written to disk.
 
 ---
 

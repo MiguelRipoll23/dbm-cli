@@ -6,6 +6,10 @@ export type EngineConfig = {
   buildArgs: (connection: ConnectionWithCredentials) => string[];
   buildEnv: (password: string) => Record<string, string>;
   buildStdin?: (connection: ConnectionWithCredentials, password: string) => string;
+  buildExecuteArgs?: (command: string) => string[];
+  buildExecuteStdin?: (connection: ConnectionWithCredentials, password: string, command: string) => string;
+  buildReadOnlyArgs?: () => string[];
+  buildReadOnlyEnv?: () => Record<string, string>;
 };
 
 export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
@@ -22,6 +26,7 @@ export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
       connection.database,
     ],
     buildEnv: (password) => ({ SQLCMDPASSWORD: password }),
+    buildExecuteArgs: (command) => ["-Q", command],
   },
 
   oracle: {
@@ -32,6 +37,8 @@ export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
     buildEnv: () => ({}),
     buildStdin: (connection, password) =>
       `CONNECT ${connection.username}/${password}@${connection.host}:${connection.port}/${connection.database}\n`,
+    buildExecuteStdin: (connection, password, command) =>
+      `CONNECT ${connection.username}/${password}@${connection.host}:${connection.port}/${connection.database}\n${command}\nEXIT\n`,
   },
 
   mariadb: {
@@ -46,8 +53,13 @@ export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
       "-u",
       connection.username,
       connection.database,
+      ...Object.entries(connection.options ?? {}).map(([key, value]) =>
+        value === "" ? `--${key}` : `--${key}=${value}`,
+      ),
     ],
     buildEnv: (password) => ({ MYSQL_PWD: password }),
+    buildExecuteArgs: (command) => ["-e", command],
+    buildReadOnlyArgs: () => ["--init-command=SET SESSION transaction_read_only=1"],
   },
 
   postgres: {
@@ -63,7 +75,12 @@ export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
       connection.username,
       "-d",
       connection.database,
+      ...Object.entries(connection.options ?? {}).map(([key, value]) =>
+        value === "" ? `--${key}` : `--${key}=${value}`,
+      ),
     ],
     buildEnv: (password) => ({ PGPASSWORD: password }),
+    buildExecuteArgs: (command) => ["-c", command],
+    buildReadOnlyEnv: () => ({ PGOPTIONS: "-c default_transaction_read_only=on" }),
   },
 };

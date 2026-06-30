@@ -1,6 +1,13 @@
 import { defineCommand } from "citty";
 import consola from "consola";
 import type { ConnectionService } from "../core/services/connection-service.js";
+import type { Connection } from "../core/domain/connection.js";
+
+const reset = "\x1b[0m";
+const bold = "\x1b[1m";
+const nameColor = "\x1b[38;5;183m";
+const labelColor = "\x1b[38;5;152m";
+const dimColor = "\x1b[2m";
 
 export function makeListCommand(connectionService: ConnectionService) {
   return defineCommand({
@@ -24,49 +31,35 @@ export function makeListCommand(connectionService: ConnectionService) {
           return;
         }
 
-        const header = padRow("NAME", "ENGINE", "ENVIRONMENT", "HOST", "PORT", "DATABASE", "USERNAME");
-        const separator = "-".repeat(header.length);
-        consola.log(separator);
-        consola.log(header);
-        consola.log(separator);
+        // Group by name (preserve insertion order)
+        const groups = new Map<string, Connection[]>();
         for (const connection of connections) {
-          consola.log(
-            padRow(
-              connection.name,
-              connection.engine,
-              connection.environment ?? "—",
-              connection.host,
-              String(connection.port),
-              connection.database,
-              connection.username,
-            ),
-          );
+          const group = groups.get(connection.name) ?? [];
+          group.push(connection);
+          groups.set(connection.name, group);
         }
-        consola.log(separator);
+
+        const lines: string[] = [];
+        let first = true;
+        for (const [name, envConnections] of groups) {
+          if (!first) lines.push("");
+          first = false;
+          const engine = envConnections[0]!.engine;
+          lines.push(`${bold}${nameColor}● ${name}${reset}  ${dimColor}[${engine}]${reset}`);
+          for (const c of envConnections) {
+            const location = `${c.host}:${c.port}/${c.database}`;
+            const readOnlyTag = c.readOnly ? `  ${dimColor}[read-only]${reset}` : "";
+            lines.push(`  ${labelColor}${c.environment.padEnd(13)}${reset}${location}${readOnlyTag}`);
+          }
+        }
+
+        for (const line of lines) {
+          consola.log(line);
+        }
       } catch (error) {
         consola.error(error instanceof Error ? error.message : String(error));
         process.exit(1);
       }
     },
   });
-}
-
-function padRow(
-  name: string,
-  engine: string,
-  environment: string,
-  host: string,
-  port: string,
-  database: string,
-  username: string,
-): string {
-  return [
-    name.padEnd(20),
-    engine.padEnd(10),
-    environment.padEnd(14),
-    host.padEnd(24),
-    port.padEnd(6),
-    database.padEnd(20),
-    username.padEnd(16),
-  ].join(" ");
 }

@@ -3,16 +3,17 @@
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "db-cli": "./dist/index.js"
+    "db-cli": "./dist/index.js",
+    "db": "./dist/index.js"
   },
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/core/services/connection-service.test.js dist/constants/engines.test.js dist/adapters/keepassxc-secret-resolver.test.js"
+    "test": "node --test dist/core/services/connection-service.test.js dist/constants/engines.test.js"
   },
   "dependencies": {
     "citty": "^0.1.6",
     "consola": "^3.2.3",
-    "env-paths": "^3.0.0",
+    "tweetnacl": "^1.0.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

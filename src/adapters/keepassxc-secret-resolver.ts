@@ -12,7 +12,10 @@ function promptMaskedPassword(message: string): Promise<string> {
       output: process.stdout,
     });
     process.stdout.write(`${message}: `);
-    // Suppress echo so password is not visible
+    // Suppress echo so the typed password is not visible on the terminal.
+    // _writeToOutput is an internal readline hook — the standard community
+    // workaround for echo suppression without external dependencies.
+    // See: https://github.com/nodejs/node/issues/11887
     (rl as unknown as { _writeToOutput: () => void })._writeToOutput = () => {};
     rl.question("", (answer) => {
       process.stdout.write("\n");
@@ -25,50 +28,38 @@ function promptMaskedPassword(message: string): Promise<string> {
 export class KeepassxcSecretResolver implements SecretResolver {
   constructor(private readonly spawnFunction: SpawnFunction = spawn) {}
 
-  resolvePassword(reference: KeepassReference): Promise<string> {
+  async resolvePassword(reference: KeepassReference): Promise<string> {
+    const masterPassword =
+      process.env.KEEPASSXC_MASTER !== undefined
+        ? process.env.KEEPASSXC_MASTER
+        : await promptMaskedPassword("KeePassXC master password");
+
     return new Promise<string>((resolve, reject) => {
-      const masterPasswordPromise =
-        process.env.KEEPASSXC_MASTER !== undefined
-          ? Promise.resolve(process.env.KEEPASSXC_MASTER)
-          : promptMaskedPassword("KeePassXC master password");
+      const child = this.spawnFunction(
+        "keepassxc-cli",
+        ["show", "-a", "Password", "-q", reference.databasePath, reference.entryPath],
+        { stdio: ["pipe", "pipe", "pipe"] },
+      );
 
-      masterPasswordPromise
-        .then((masterPassword) => {
-          const child = this.spawnFunction(
-            "keepassxc-cli",
-            ["show", "-a", "Password", "-q", reference.databasePath, reference.entryPath],
-            { stdio: ["pipe", "pipe", "pipe"] },
-          );
+      const stdoutChunks: Buffer[] = [];
+      const stderrChunks: Buffer[] = [];
 
-          const stdoutChunks: Buffer[] = [];
-          const stderrChunks: Buffer[] = [];
+      child.stdout!.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
+      child.stderr!.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
 
-          child.stdout.on("data", (chunk: Buffer) => {
-            stdoutChunks.push(chunk);
-          });
+      child.on("error", reject);
 
-          child.stderr.on("data", (chunk: Buffer) => {
-            stderrChunks.push(chunk);
-          });
+      child.on("close", (code) => {
+        if (code !== 0) {
+          const stderr = Buffer.concat(stderrChunks).toString().trim();
+          reject(new Error(`keepassxc-cli failed (exit ${code}): ${stderr}`));
+          return;
+        }
+        resolve(Buffer.concat(stdoutChunks).toString().trim());
+      });
 
-          child.stdin.write(masterPassword + "\n");
-          child.stdin.end();
-
-          child.on("close", (code) => {
-            const stderr = Buffer.concat(stderrChunks).toString("utf8");
-            if (code !== 0) {
-              reject(new Error(`keepassxc-cli failed (exit ${code}): ${stderr}`));
-              return;
-            }
-            const stdout = Buffer.concat(stdoutChunks).toString("utf8");
-            resolve(stdout.trim());
-          });
-
-          child.on("error", (error) => {
-            reject(error);
-          });
-        })
-        .catch(reject);
+      child.stdin!.write(masterPassword + "\n");
+      child.stdin!.end();
     });
   }
 }

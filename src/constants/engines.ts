@@ -1,15 +1,18 @@
-import type { Connection, Engine } from "../core/domain/connection.js";
+import type { ConnectionWithCredentials, Engine } from "../core/domain/connection.js";
 
 export type EngineConfig = {
   clientBinary: string;
-  buildArgs: (connection: Connection) => string[];
+  downloadHint: string;
+  buildArgs: (connection: ConnectionWithCredentials) => string[];
   buildEnv: (password: string) => Record<string, string>;
-  buildStdin?: (connection: Connection, password: string) => string;
+  buildStdin?: (connection: ConnectionWithCredentials, password: string) => string;
 };
 
 export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
   mssql: {
     clientBinary: "sqlcmd",
+    downloadHint:
+      "Download sqlcmd from https://learn.microsoft.com/en-us/sql/tools/sqlcmd/sqlcmd-utility",
     buildArgs: (connection) => [
       "-S",
       `${connection.host},${connection.port}`,
@@ -23,6 +26,8 @@ export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
 
   oracle: {
     clientBinary: "sqlplus",
+    downloadHint:
+      "Download sqlplus from https://www.oracle.com/database/technologies/instant-client/downloads.html",
     buildArgs: () => ["/nolog"],
     buildEnv: () => ({}),
     buildStdin: (connection, password) =>
@@ -31,6 +36,8 @@ export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
 
   mariadb: {
     clientBinary: "mariadb",
+    downloadHint:
+      "Download mariadb client from https://mariadb.org/download/",
     buildArgs: (connection) => [
       "-h",
       connection.host,
@@ -45,6 +52,8 @@ export const ENGINE_CONFIGS: Record<Engine, EngineConfig> = {
 
   postgres: {
     clientBinary: "psql",
+    downloadHint:
+      "Download psql from https://www.postgresql.org/download/",
     buildArgs: (connection) => [
       "-h",
       connection.host,

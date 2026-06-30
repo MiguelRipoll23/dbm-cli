@@ -1,9 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { Connection } from "../core/domain/connection.js";
+import type { ConnectionWithCredentials, Engine } from "../core/domain/connection.js";
 import { ENGINE_CONFIGS } from "./engines.js";
 
-function makeConnection(overrides: Partial<Connection> = {}): Connection {
+function makeConnection(overrides: Partial<ConnectionWithCredentials> = {}): ConnectionWithCredentials {
   return {
     name: "test-conn",
     engine: "postgres",
@@ -11,12 +11,8 @@ function makeConnection(overrides: Partial<Connection> = {}): Connection {
     port: 5432,
     database: "testdb",
     username: "testuser",
-    keepass: {
-      databasePath: "/path/to/db.kdbx",
-      entryPath: "db-cli/testdb",
-    },
     ...overrides,
-  };
+  } as ConnectionWithCredentials;
 }
 
 const TEST_PASSWORD = "s3cr3tP@ssw0rd";
@@ -101,6 +97,20 @@ describe("ENGINE_CONFIGS", () => {
     it("buildStdin is undefined", () => {
       assert.equal(config.buildStdin, undefined);
     });
+  });
+
+  describe("downloadHint", () => {
+    const engines: Engine[] = ["mssql", "oracle", "mariadb", "postgres"];
+
+    for (const engine of engines) {
+      it(`${engine} has a non-empty downloadHint`, () => {
+        assert.ok(
+          typeof ENGINE_CONFIGS[engine].downloadHint === "string" &&
+            ENGINE_CONFIGS[engine].downloadHint.length > 0,
+          `downloadHint must be a non-empty string for ${engine}`,
+        );
+      });
+    }
   });
 
   describe("postgres", () => {

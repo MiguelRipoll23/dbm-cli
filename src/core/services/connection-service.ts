@@ -29,7 +29,7 @@ export class ConnectionService {
     await this.repository.save(connection);
   }
 
-  async update(name: string, environment: string, updates: Partial<Omit<Connection, "name" | "environment">>): Promise<void> {
+  async update(name: string, environment: string, updates: Partial<Omit<Connection, "name" | "environment" | "engine">>): Promise<void> {
     const existing = await this.repository.get(name, environment);
     if (existing === undefined) {
       throw new Error(`Connection "${name}" in environment "${environment}" not found`);

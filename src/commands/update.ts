@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import consola from "consola";
-import type { Connection, Engine } from "../core/domain/connection.js";
-import { VALID_ENGINES, VALID_ENVIRONMENTS } from "../core/domain/connection.js";
+import type { Connection } from "../core/domain/connection.js";
+import { VALID_ENVIRONMENTS } from "../core/domain/connection.js";
 import type { ConnectionService } from "../core/services/connection-service.js";
 
 export function makeUpdateCommand(connectionService: ConnectionService) {
@@ -13,7 +13,6 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
     args: {
       name: { type: "positional", description: "Connection name", required: true },
       environment: { type: "positional", description: "Environment (development, staging, production, local)", required: true },
-      engine: { type: "string", required: false, description: "Database engine (mssql, oracle, mariadb, postgres)" },
       host: { type: "string", required: false, description: "Database host" },
       port: { type: "string", required: false, description: "Database port" },
       database: { type: "string", required: false, description: "Database name" },
@@ -31,15 +30,6 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
         }
 
         const updates: Partial<Omit<Connection, "name" | "environment">> = {};
-
-        if (args.engine !== undefined) {
-          const engine = args.engine as string;
-          if (!(VALID_ENGINES as string[]).includes(engine)) {
-            consola.error(`Invalid engine "${engine}". Must be one of: ${VALID_ENGINES.join(", ")}`);
-            process.exit(1);
-          }
-          updates.engine = engine as Engine;
-        }
 
         if (args.host !== undefined) {
           updates.host = args.host as string;

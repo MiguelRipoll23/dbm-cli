@@ -4,6 +4,10 @@ export type Engine = "mssql" | "oracle" | "mariadb" | "postgres";
 
 export const VALID_ENGINES: Engine[] = ["mssql", "oracle", "mariadb", "postgres"];
 
+export type Environment = "development" | "staging" | "production" | "local";
+
+export const VALID_ENVIRONMENTS: Environment[] = ["development", "staging", "production", "local"];
+
 export type KeepassReference = {
   databasePath: string;
   entryPath: string;
@@ -17,6 +21,7 @@ export type Connection = {
   database: string;
   username: string;
   keepass: KeepassReference;
+  environment?: Environment;
   options?: Record<string, string>;
 };
 
@@ -31,6 +36,7 @@ export const connectionSchema = z.object({
     databasePath: z.string(),
     entryPath: z.string(),
   }),
+  environment: z.enum(["development", "staging", "production", "local"]).optional(),
   options: z.record(z.string(), z.string()).optional(),
 });
 

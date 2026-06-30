@@ -8,16 +8,23 @@ export function makeListCommand(connectionService: ConnectionService) {
       name: "list",
       description: "List all saved database connections",
     },
-    async run() {
+    args: {
+      env: { type: "string", required: false, description: "Filter by environment (development, staging, production, local)" },
+    },
+    async run({ args }) {
       try {
-        const connections = await connectionService.list();
+        let connections = await connectionService.list();
+
+        if (args.env) {
+          connections = connections.filter((c) => c.environment === args.env);
+        }
 
         if (connections.length === 0) {
           consola.log("No connections configured.");
           return;
         }
 
-        const header = padRow("NAME", "ENGINE", "HOST", "PORT", "DATABASE", "USERNAME");
+        const header = padRow("NAME", "ENGINE", "ENVIRONMENT", "HOST", "PORT", "DATABASE", "USERNAME");
         const separator = "-".repeat(header.length);
         consola.log(separator);
         consola.log(header);
@@ -27,6 +34,7 @@ export function makeListCommand(connectionService: ConnectionService) {
             padRow(
               connection.name,
               connection.engine,
+              connection.environment ?? "—",
               connection.host,
               String(connection.port),
               connection.database,
@@ -46,17 +54,19 @@ export function makeListCommand(connectionService: ConnectionService) {
 function padRow(
   name: string,
   engine: string,
+  environment: string,
   host: string,
   port: string,
   database: string,
   username: string,
 ): string {
   return [
-    name.padEnd(24),
+    name.padEnd(20),
     engine.padEnd(10),
-    host.padEnd(30),
-    port.padEnd(8),
+    environment.padEnd(14),
+    host.padEnd(24),
+    port.padEnd(6),
     database.padEnd(20),
-    username.padEnd(20),
+    username.padEnd(16),
   ].join(" ");
 }

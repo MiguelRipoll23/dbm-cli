@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import consola from "consola";
-import type { Engine } from "../core/domain/connection.js";
-import { VALID_ENGINES } from "../core/domain/connection.js";
+import type { Engine, Environment } from "../core/domain/connection.js";
+import { VALID_ENGINES, VALID_ENVIRONMENTS } from "../core/domain/connection.js";
 import type { ConnectionService } from "../core/services/connection-service.js";
 
 export function makeCreateCommand(connectionService: ConnectionService) {
@@ -19,6 +19,7 @@ export function makeCreateCommand(connectionService: ConnectionService) {
       username: { type: "string", required: true, description: "Database username" },
       "keepass-db": { type: "string", required: true, description: "Path to the KeePass database file" },
       "keepass-entry": { type: "string", required: true, description: "KeePass entry path" },
+      environment: { type: "string", required: true, description: "Environment (development, staging, production, local)" },
       options: { type: "string", required: false, description: "Additional options as a JSON string" },
     },
     async run({ args }) {
@@ -26,6 +27,12 @@ export function makeCreateCommand(connectionService: ConnectionService) {
         const engine = args.engine as string;
         if (!(VALID_ENGINES as string[]).includes(engine)) {
           consola.error(`Invalid engine "${engine}". Must be one of: ${VALID_ENGINES.join(", ")}`);
+          process.exit(1);
+        }
+
+        const environment = args.environment as string;
+        if (!(VALID_ENVIRONMENTS as string[]).includes(environment)) {
+          consola.error(`Invalid environment "${environment}". Must be one of: ${VALID_ENVIRONMENTS.join(", ")}`);
           process.exit(1);
         }
 
@@ -56,6 +63,7 @@ export function makeCreateCommand(connectionService: ConnectionService) {
             databasePath: args["keepass-db"] as string,
             entryPath: args["keepass-entry"] as string,
           },
+          environment: environment as Environment,
           options,
         });
 

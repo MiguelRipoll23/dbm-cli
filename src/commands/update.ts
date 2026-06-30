@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import consola from "consola";
-import type { Connection, Engine, Environment } from "../core/domain/connection.js";
+import type { Connection, Engine } from "../core/domain/connection.js";
 import { VALID_ENGINES, VALID_ENVIRONMENTS } from "../core/domain/connection.js";
 import type { ConnectionService } from "../core/services/connection-service.js";
 
@@ -12,20 +12,25 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
     },
     args: {
       name: { type: "positional", description: "Connection name", required: true },
+      environment: { type: "positional", description: "Environment (development, staging, production, local)", required: true },
       engine: { type: "string", required: false, description: "Database engine (mssql, oracle, mariadb, postgres)" },
       host: { type: "string", required: false, description: "Database host" },
       port: { type: "string", required: false, description: "Database port" },
       database: { type: "string", required: false, description: "Database name" },
-      username: { type: "string", required: false, description: "Database username" },
-      "keepass-db": { type: "string", required: false, description: "Path to the KeePass database file" },
-      "keepass-entry": { type: "string", required: false, description: "KeePass entry path" },
-      environment: { type: "string", required: false, description: "Environment (development, staging, production, local)" },
       options: { type: "string", required: false, description: "Additional options as a JSON string" },
+      readOnly: { type: "boolean", required: false, description: "Mark connection as read-only" },
     },
     async run({ args }) {
       try {
         const name = args.name as string;
-        const updates: Partial<Omit<Connection, "name">> = {};
+        const environment = args.environment as string;
+
+        if (!(VALID_ENVIRONMENTS as string[]).includes(environment)) {
+          consola.error(`Invalid environment "${environment}". Must be one of: ${VALID_ENVIRONMENTS.join(", ")}`);
+          process.exit(1);
+        }
+
+        const updates: Partial<Omit<Connection, "name" | "environment">> = {};
 
         if (args.engine !== undefined) {
           const engine = args.engine as string;
@@ -53,32 +58,6 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
           updates.database = args.database as string;
         }
 
-        if (args.username !== undefined) {
-          updates.username = args.username as string;
-        }
-
-        const hasKeepassDb = args["keepass-db"] !== undefined;
-        const hasKeepassEntry = args["keepass-entry"] !== undefined;
-        if (hasKeepassDb !== hasKeepassEntry) {
-          consola.error("Both --keepass-db and --keepass-entry must be provided together");
-          process.exit(1);
-        }
-        if (hasKeepassDb && hasKeepassEntry) {
-          updates.keepass = {
-            databasePath: args["keepass-db"] as string,
-            entryPath: args["keepass-entry"] as string,
-          };
-        }
-
-        if (args.environment !== undefined) {
-          const environment = args.environment as string;
-          if (!(VALID_ENVIRONMENTS as string[]).includes(environment)) {
-            consola.error(`Invalid environment "${environment}". Must be one of: ${VALID_ENVIRONMENTS.join(", ")}`);
-            process.exit(1);
-          }
-          updates.environment = environment as Environment;
-        }
-
         if (args.options !== undefined) {
           try {
             updates.options = JSON.parse(args.options as string) as Record<string, string>;
@@ -88,8 +67,12 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
           }
         }
 
-        await connectionService.update(name, updates);
-        consola.success(`Connection "${name}" updated successfully.`);
+        if (args.readOnly !== undefined) {
+          updates.readOnly = args.readOnly as boolean;
+        }
+
+        await connectionService.update(name, environment, updates);
+        consola.success(`Connection "${name}" (${environment}) updated successfully.`);
       } catch (error) {
         consola.error(error instanceof Error ? error.message : String(error));
         process.exit(1);

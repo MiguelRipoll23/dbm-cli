@@ -33,7 +33,7 @@ export function makeKeepassStoreCommand(connectionService: ConnectionService, se
           process.exit(1);
         }
 
-        const exists = await secretResolver.entryExists(name);
+        const exists = await secretResolver.entryExists(name, environment);
         if (exists) {
           const overwriteAnswer = await promptText("Entry already exists. Overwrite? [y/N]:");
           if (overwriteAnswer.toLowerCase() !== "y") {
@@ -61,11 +61,11 @@ export function makeKeepassStoreCommand(connectionService: ConnectionService, se
         }
 
         if (exists) {
-          await secretResolver.editEntry(name, username, password);
+          await secretResolver.editEntry(name, environment, username, password);
         } else {
-          await secretResolver.storePassword(name, username, password);
+          await secretResolver.storePassword(name, environment, username, password);
         }
-        consola.success(`Credentials stored in KeePass for connection "${name}" (${environment}).`);
+        consola.success(`Credentials stored in KeePass for "${name}" (${environment}).`);
       } catch (error) {
         consola.error(error instanceof Error ? error.message : String(error));
         process.exit(1);

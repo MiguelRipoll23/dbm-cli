@@ -1,10 +1,13 @@
+import { randomBytes } from "node:crypto";
 import { defineCommand } from "citty";
 import consola from "consola";
 import type { Engine, Environment } from "../core/domain/connection.js";
 import { VALID_ENGINES, VALID_ENVIRONMENTS } from "../core/domain/connection.js";
 import type { ConnectionService } from "../core/services/connection-service.js";
+import type { SecretResolver } from "../core/ports/secret-resolver.js";
+import { promptMaskedPassword, promptText } from "../utilities/prompt.js";
 
-export function makeCreateCommand(connectionService: ConnectionService) {
+export function makeCreateCommand(connectionService: ConnectionService, secretResolver: SecretResolver) {
   return defineCommand({
     meta: {
       name: "create",
@@ -16,11 +19,9 @@ export function makeCreateCommand(connectionService: ConnectionService) {
       host: { type: "string", required: true, description: "Database host" },
       port: { type: "string", required: true, description: "Database port" },
       database: { type: "string", required: true, description: "Database name" },
-      username: { type: "string", required: true, description: "Database username" },
-      "keepass-db": { type: "string", required: true, description: "Path to the KeePass database file" },
-      "keepass-entry": { type: "string", required: true, description: "KeePass entry path" },
       environment: { type: "string", required: true, description: "Environment (development, staging, production, local)" },
       options: { type: "string", required: false, description: "Additional options as a JSON string" },
+      readOnly: { type: "boolean", required: false, description: "Mark connection as read-only" },
     },
     async run({ args }) {
       try {
@@ -52,22 +53,43 @@ export function makeCreateCommand(connectionService: ConnectionService) {
           }
         }
 
+        const connectionName = args.name as string;
+
         await connectionService.create({
-          name: args.name as string,
+          name: connectionName,
           engine: engine as Engine,
           host: args.host as string,
           port,
           database: args.database as string,
-          username: args.username as string,
-          keepass: {
-            databasePath: args["keepass-db"] as string,
-            entryPath: args["keepass-entry"] as string,
-          },
           environment: environment as Environment,
+          readOnly: args.readOnly as boolean | undefined,
           options,
         });
 
-        consola.success(`Connection "${args.name}" created successfully.`);
+        consola.success(`Connection "${connectionName}" created successfully.`);
+
+        const storeAnswer = await promptText("Store database password in KeePass now? [Y/n]:");
+        if (storeAnswer === "" || storeAnswer.toLowerCase() === "y") {
+          const modeAnswer = await promptText("Enter password [m]anually or [g]enerate random? [m/g]:");
+
+          let password: string;
+          if (modeAnswer.toLowerCase() === "g") {
+            password = randomBytes(16).toString("base64url").slice(0, 20);
+            consola.info(`Generated password: ${password}`);
+            consola.warn("Save this password — it will not be shown again.");
+          } else {
+            password = await promptMaskedPassword("Database password");
+          }
+
+          const exists = await secretResolver.entryExists(connectionName, environment as Environment);
+          if (exists) {
+            consola.warn("KeePass entry already exists. Password not overwritten.");
+          } else {
+            const username = await promptText("Database username (for KeePass entry):");
+            await secretResolver.storePassword(connectionName, environment as Environment, username, password);
+            consola.success("Password stored in KeePass successfully.");
+          }
+        }
       } catch (error) {
         consola.error(error instanceof Error ? error.message : String(error));
         process.exit(1);

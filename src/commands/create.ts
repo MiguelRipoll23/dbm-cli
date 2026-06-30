@@ -1,9 +1,8 @@
 import { defineCommand } from "citty";
 import consola from "consola";
 import type { Engine } from "../core/domain/connection.js";
+import { VALID_ENGINES } from "../core/domain/connection.js";
 import type { ConnectionService } from "../core/services/connection-service.js";
-
-const VALID_ENGINES: Engine[] = ["mssql", "oracle", "mariadb", "postgres"];
 
 export function makeCreateCommand(connectionService: ConnectionService) {
   return defineCommand({

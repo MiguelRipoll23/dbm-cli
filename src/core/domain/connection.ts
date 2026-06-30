@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export type Engine = "mssql" | "oracle" | "mariadb" | "postgres";
 
+export const VALID_ENGINES: Engine[] = ["mssql", "oracle", "mariadb", "postgres"];
+
 export type KeepassReference = {
   databasePath: string;
   entryPath: string;

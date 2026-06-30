@@ -27,6 +27,10 @@ export class ConnectionService {
   }
 
   async delete(name: string): Promise<void> {
+    const existing = await this.repository.get(name);
+    if (existing === undefined) {
+      throw new Error(`Connection "${name}" not found`);
+    }
     await this.repository.remove(name);
   }
 }

@@ -1,9 +1,8 @@
 import { defineCommand } from "citty";
 import consola from "consola";
 import type { Connection, Engine } from "../core/domain/connection.js";
+import { VALID_ENGINES } from "../core/domain/connection.js";
 import type { ConnectionService } from "../core/services/connection-service.js";
-
-const VALID_ENGINES: Engine[] = ["mssql", "oracle", "mariadb", "postgres"];
 
 export function makeUpdateCommand(connectionService: ConnectionService) {
   return defineCommand({
@@ -56,7 +55,13 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
         updates.username = args.username as string;
       }
 
-      if (args["keepass-db"] !== undefined || args["keepass-entry"] !== undefined) {
+      const hasKeepassDb = args["keepass-db"] !== undefined;
+      const hasKeepassEntry = args["keepass-entry"] !== undefined;
+      if (hasKeepassDb !== hasKeepassEntry) {
+        consola.error("Both --keepass-db and --keepass-entry must be provided together");
+        process.exit(1);
+      }
+      if (hasKeepassDb && hasKeepassEntry) {
         updates.keepass = {
           databasePath: args["keepass-db"] as string,
           entryPath: args["keepass-entry"] as string,

@@ -1,9 +1,26 @@
 import { spawn } from "node:child_process";
-import consola from "consola";
+import readline from "node:readline";
 import type { KeepassReference } from "../core/domain/connection.js";
 import type { SecretResolver } from "../core/ports/secret-resolver.js";
 
 type SpawnFunction = typeof import("node:child_process").spawn;
+
+function promptMaskedPassword(message: string): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+    process.stdout.write(`${message}: `);
+    // Suppress echo so password is not visible
+    (rl as unknown as { _writeToOutput: () => void })._writeToOutput = () => {};
+    rl.question("", (answer) => {
+      process.stdout.write("\n");
+      rl.close();
+      resolve(answer);
+    });
+  });
+}
 
 export class KeepassxcSecretResolver implements SecretResolver {
   constructor(private readonly spawnFunction: SpawnFunction = spawn) {}
@@ -13,7 +30,7 @@ export class KeepassxcSecretResolver implements SecretResolver {
       const masterPasswordPromise =
         process.env.KEEPASSXC_MASTER !== undefined
           ? Promise.resolve(process.env.KEEPASSXC_MASTER)
-          : consola.prompt("KeePassXC master password:", { type: "text" });
+          : promptMaskedPassword("KeePassXC master password");
 
       masterPasswordPromise
         .then((masterPassword) => {

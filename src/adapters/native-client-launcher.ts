@@ -16,7 +16,11 @@ export class NativeClientLauncher implements ClientLauncher {
     });
 
     return new Promise<void>((resolve, reject) => {
+      let settled = false;
+
       child.on("error", (error: NodeJS.ErrnoException) => {
+        if (settled) return;
+        settled = true;
         if (error.code === "ENOENT") {
           reject(
             new Error(
@@ -28,27 +32,21 @@ export class NativeClientLauncher implements ClientLauncher {
         }
       });
 
-      if (config.buildStdin !== undefined) {
-        const stdinPayload = config.buildStdin(connection, password);
-        child.stdin.write(stdinPayload);
-        child.stdin.end();
-      }
-
       child.on("close", (code) => {
-        if (child.pid === undefined) {
-          reject(
-            new Error(
-              `Client binary "${binary}" not found. Install ${connection.engine} client tools.`,
-            ),
-          );
-          return;
-        }
+        if (settled) return;
+        settled = true;
         if (code !== 0) {
           reject(new Error(`${binary} exited with code ${code}`));
-          return;
+        } else {
+          resolve();
         }
-        resolve();
       });
+
+      if (config.buildStdin !== undefined) {
+        const stdinPayload = config.buildStdin(connection, password);
+        child.stdin!.write(stdinPayload);
+        child.stdin!.end();
+      }
     });
   }
 }

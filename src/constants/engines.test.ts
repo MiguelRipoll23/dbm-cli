@@ -33,7 +33,7 @@ describe("ENGINE_CONFIGS", () => {
 
     it("buildEnv returns correct env var with the password", () => {
       const env = config.buildEnv(TEST_PASSWORD);
-      assert.equal(env["SQLCMDPASSWORD"], TEST_PASSWORD);
+      assert.deepEqual(env, { SQLCMDPASSWORD: TEST_PASSWORD });
     });
 
     it("password does not appear in buildArgs", () => {
@@ -90,7 +90,7 @@ describe("ENGINE_CONFIGS", () => {
 
     it("buildEnv returns correct env var with the password", () => {
       const env = config.buildEnv(TEST_PASSWORD);
-      assert.equal(env["MYSQL_PWD"], TEST_PASSWORD);
+      assert.deepEqual(env, { MYSQL_PWD: TEST_PASSWORD });
     });
 
     it("password does not appear in buildArgs", () => {
@@ -114,7 +114,7 @@ describe("ENGINE_CONFIGS", () => {
 
     it("buildEnv returns correct env var with the password", () => {
       const env = config.buildEnv(TEST_PASSWORD);
-      assert.equal(env["PGPASSWORD"], TEST_PASSWORD);
+      assert.deepEqual(env, { PGPASSWORD: TEST_PASSWORD });
     });
 
     it("password does not appear in buildArgs", () => {

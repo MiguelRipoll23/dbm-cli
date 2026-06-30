@@ -9,31 +9,36 @@ export function makeListCommand(connectionService: ConnectionService) {
       description: "List all saved database connections",
     },
     async run() {
-      const connections = await connectionService.list();
+      try {
+        const connections = await connectionService.list();
 
-      if (connections.length === 0) {
-        consola.log("No connections configured.");
-        return;
-      }
+        if (connections.length === 0) {
+          consola.log("No connections configured.");
+          return;
+        }
 
-      const header = padRow("NAME", "ENGINE", "HOST", "PORT", "DATABASE", "USERNAME");
-      const separator = "-".repeat(header.length);
-      consola.log(separator);
-      consola.log(header);
-      consola.log(separator);
-      for (const connection of connections) {
-        consola.log(
-          padRow(
-            connection.name,
-            connection.engine,
-            connection.host,
-            String(connection.port),
-            connection.database,
-            connection.username,
-          ),
-        );
+        const header = padRow("NAME", "ENGINE", "HOST", "PORT", "DATABASE", "USERNAME");
+        const separator = "-".repeat(header.length);
+        consola.log(separator);
+        consola.log(header);
+        consola.log(separator);
+        for (const connection of connections) {
+          consola.log(
+            padRow(
+              connection.name,
+              connection.engine,
+              connection.host,
+              String(connection.port),
+              connection.database,
+              connection.username,
+            ),
+          );
+        }
+        consola.log(separator);
+      } catch (error) {
+        consola.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
       }
-      consola.log(separator);
     },
   });
 }

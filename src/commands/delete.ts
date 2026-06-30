@@ -12,9 +12,14 @@ export function makeDeleteCommand(connectionService: ConnectionService) {
       name: { type: "positional", description: "Connection name", required: true },
     },
     async run({ args }) {
-      const name = args.name as string;
-      await connectionService.delete(name);
-      consola.success(`Connection "${name}" deleted successfully.`);
+      try {
+        const name = args.name as string;
+        await connectionService.delete(name);
+        consola.success(`Connection "${name}" deleted successfully.`);
+      } catch (error) {
+        consola.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
     },
   });
 }

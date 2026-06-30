@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { createRequire } from "node:module";
 import { defineCommand, runMain } from "citty";
 import { JsonConnectionRepository } from "./adapters/json-connection-repository.js";

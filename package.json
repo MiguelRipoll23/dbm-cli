@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node --test dist/**/*.test.js"
+    "test": "node --test dist/core/services/connection-service.test.js dist/constants/engines.test.js dist/adapters/keepassxc-secret-resolver.test.js"
   },
   "dependencies": {
     "citty": "^0.1.6",

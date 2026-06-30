@@ -8,16 +8,7 @@ export class JsonConnectionRepository implements ConnectionRepository {
   constructor(private readonly filePath: string) {}
 
   async list(): Promise<Connection[]> {
-    let raw: string;
-    try {
-      raw = await fs.readFile(this.filePath, "utf-8");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-        return [];
-      }
-      throw error;
-    }
-    const map = connectionsMapSchema.parse(JSON.parse(raw));
+    const map = await this.loadMap();
     return Object.values(map);
   }
 
@@ -28,9 +19,9 @@ export class JsonConnectionRepository implements ConnectionRepository {
 
   async save(connection: Connection): Promise<void> {
     const map = await this.loadMap();
-    map[connection.name] = connection;
-    connectionsMapSchema.parse(map);
-    await this.writeMapAtomically(map);
+    const newMap = { ...map, [connection.name]: connection };
+    connectionsMapSchema.parse(newMap);
+    await this.writeMapAtomically(newMap);
   }
 
   async remove(name: string): Promise<void> {
@@ -52,7 +43,7 @@ export class JsonConnectionRepository implements ConnectionRepository {
       }
       throw error;
     }
-    return connectionsMapSchema.parse(JSON.parse(raw)) as Record<string, Connection>;
+    return connectionsMapSchema.parse(JSON.parse(raw));
   }
 
   private async writeMapAtomically(map: Record<string, Connection>): Promise<void> {

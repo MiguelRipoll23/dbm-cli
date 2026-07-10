@@ -11,11 +11,11 @@ export class ConnectService {
   ) {}
 
   async connect(name: string, environment: string, executeCommand?: string): Promise<void> {
-    const connection = await this.repository.get(name, environment);
+    const connection = await this.repository.getByName(name, environment);
     if (connection === undefined) {
       throw new Error(`Connection "${name}" for environment "${environment}" not found`);
     }
-    const { username, password } = await this.secretResolver.resolveCredentials(name, environment);
+    const { username, password } = await this.secretResolver.resolveCredentials(connection);
     const connectionWithCredentials: ConnectionWithCredentials = { ...connection, username };
     await this.launcher.launch(connectionWithCredentials, password, executeCommand);
   }

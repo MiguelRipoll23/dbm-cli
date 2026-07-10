@@ -13,6 +13,7 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
     args: {
       name: { type: "positional", description: "Connection name", required: true },
       environment: { type: "positional", description: "Environment (development, staging, production, local)", required: true },
+      rename: { type: "string", required: false, description: "Rename the connection" },
       host: { type: "string", required: false, description: "Database host" },
       port: { type: "string", required: false, description: "Database port" },
       database: { type: "string", required: false, description: "Database name" },
@@ -23,13 +24,24 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
       try {
         const name = args.name as string;
         const environment = args.environment as string;
+        const renameTo = args.rename as string | undefined;
 
         if (!(VALID_ENVIRONMENTS as string[]).includes(environment)) {
           consola.error(`Invalid environment "${environment}". Must be one of: ${VALID_ENVIRONMENTS.join(", ")}`);
           process.exit(1);
         }
 
-        const updates: Partial<Omit<Connection, "name" | "environment">> = {};
+        const existing = await connectionService.getByName(name, environment);
+        if (existing === undefined) {
+          consola.error(`Connection "${name}" in environment "${environment}" not found`);
+          process.exit(1);
+        }
+
+        const updates: Partial<Omit<Connection, "id">> = {};
+
+        if (renameTo !== undefined) {
+          updates.name = renameTo;
+        }
 
         if (args.host !== undefined) {
           updates.host = args.host as string;
@@ -61,8 +73,10 @@ export function makeUpdateCommand(connectionService: ConnectionService) {
           updates.readOnly = args.readOnly as boolean;
         }
 
-        await connectionService.update(name, environment, updates);
-        consola.success(`Connection "${name}" (${environment}) updated successfully.`);
+        if (Object.keys(updates).length > 0) {
+          const updated = await connectionService.update(existing.id, updates);
+          consola.success(`Connection "${updated.name}" (${updated.environment}) updated successfully.`);
+        }
       } catch (error) {
         consola.error(error instanceof Error ? error.message : String(error));
         process.exit(1);

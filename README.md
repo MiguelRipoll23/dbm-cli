@@ -1,13 +1,13 @@
 # db-cli
 
-`db-cli` is a command-line tool for managing and connecting to relational databases across multiple environments. It stores connection configurations locally in `~/.db-cli/connections.json` and retrieves passwords at connect time from a running [KeePassXC](https://keepassxc.org/) instance via its Browser Extension IPC socket, so that credentials are never stored on disk. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the password injected in the way each client expects.
+`db-cli` is a command-line tool for managing and connecting to relational databases across multiple environments. Connection metadata lives in `~/.db-cli/connections.json` (plain text — no passwords). Credentials (username/password per connection) live encrypted in `~/.db-cli/credentials.enc`, unlocked through a local web UI (`db-cli web`) with a master password. Decryption happens entirely in the browser via WebCrypto — the CLI process never sees the master password or any credential it isn't actively using to connect. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the resolved password injected the way each client expects.
 
 ---
 
 ## Prerequisites
 
 - **Node.js 20+**
-- **KeePassXC** running and unlocked (Browser Integration must be enabled in KeePassXC settings)
+- A modern browser (for the local web UI)
 - The relevant vendor client binary available on `PATH` (or installed via `db-cli client-install`) for each engine you intend to use:
 
 | Engine     | Required binary |
@@ -32,6 +32,23 @@ node ./dist/index.js <command>
 ---
 
 ## Usage
+
+### Manage connections and credentials (web UI)
+
+```bash
+db-cli web
+```
+
+Opens `http://127.0.0.1:4319` in your default browser. On first run you'll be asked to set a master password (this encrypts an empty credentials store). On later runs you unlock with that same master password.
+
+From the web UI you can:
+- Create, edit, and delete connections (host, port, database, engine, environment, read-only flag).
+- Create, edit, and delete the username/password credential for each connection.
+- Reassign or remove orphaned credentials left behind after a CLI rename (see below).
+- Change the master password from Settings — re-encrypts the whole vault with a new password after verifying the current one.
+- Close the web UI from a button in the header (or the unlock screen) instead of returning to the terminal to press Ctrl+C.
+
+The master password and every decrypted credential stay in browser memory only — nothing is persisted beyond the encrypted `credentials.enc` blob.
 
 ### List all saved connections
 
@@ -63,7 +80,7 @@ db-cli create \
   --environment development
 ```
 
-After creation you will be prompted to store the database password in KeePassXC. You can also manage credentials later with `keepass-store`.
+`create` only saves connection metadata. Run `db-cli web` afterwards to add the credential.
 
 ### Update an existing connection
 
@@ -73,13 +90,15 @@ db-cli update mydb development --host newhost --port 5433
 
 `environment` is the second positional argument — it identifies which environment entry to update. Engine cannot be changed via update; delete and recreate if needed.
 
+Renaming (`--rename`) only affects `connections.json`; it cannot touch the encrypted `credentials.enc` blob. After a rename, open `db-cli web` and use the orphaned-credentials panel to reassign the old `name:environment` credential entry to the new name.
+
 ### Delete a connection
 
 ```bash
 db-cli delete mydb development
 ```
 
-Deletes only the specified environment entry. Other environments of the same connection name are unaffected.
+Deletes only the specified environment entry. Other environments of the same connection name are unaffected. The associated credential (if any) is left in `credentials.enc` as an orphan — remove it from the web UI if it's no longer needed.
 
 ### Connect to a database
 
@@ -91,30 +110,13 @@ db-cli connect mydb -e "SELECT 1"    # run a query non-interactively
 
 Connecting to `production` requires typing `yes` at a confirmation prompt. If no entry is found for the given environment, available environments are shown.
 
-### Store or update KeePassXC credentials
-
-```bash
-db-cli keepass-store mydb development
-db-cli keepass-store mydb production --generate   # auto-generate password
-```
+If a credential is needed, `connect` starts the local web server (if not already running), opens your browser to the unlock screen, and waits. Once you enter the master password, the browser decrypts just that one credential and hands it back to the CLI process — which passes it straight to the database client without ever printing it.
 
 ### Install database client binaries
 
 ```bash
 db-cli client-install postgres   # download psql to ~/.db-cli/clients/
 ```
-
----
-
-## KeePassXC Setup
-
-`db-cli` uses the KeePassXC Browser Extension IPC protocol to retrieve passwords at connect time. No master password is needed — KeePassXC must be running and unlocked.
-
-On first use, KeePassXC will display an association request dialog. Accept it to allow `db-cli` to read credentials. The association is cached in `~/.db-cli/keepassxc-socket.json` and reused on subsequent calls.
-
-Credentials are stored in KeePassXC under:
-- **URL:** `db-cli://<name>:<environment>` (e.g. `db-cli://mydb:development`)
-- **Group:** `db-cli`
 
 ---
 
@@ -135,25 +137,46 @@ All files are stored under `~/.db-cli/`:
 
 | File | Contents |
 |------|----------|
-| `connections.json` | Connection metadata (no passwords) |
-| `keepassxc-socket.json` | KeePassXC association cache |
+| `connections.json` | Connection metadata (no passwords), versioned envelope |
+| `credentials.enc` | Encrypted (AES-256-GCM, PBKDF2-derived key) credentials, keyed by `name:environment` |
 | `clients/` | Database client binaries installed via `client-install` |
 
-`connections.json` format:
+`connections.json` format (v2, versioned envelope):
 
 ```json
 {
-  "mydb": {
-    "engine": "postgres",
-    "environments": {
-      "development": { "host": "dev.host", "port": 5432, "database": "mydb_dev" },
-      "production":  { "host": "prod.host", "port": 5432, "database": "mydb" }
+  "version": 2,
+  "connections": {
+    "mydb": {
+      "engine": "postgres",
+      "environments": {
+        "development": { "host": "dev.host", "port": 5432, "database": "mydb_dev" },
+        "production":  { "host": "prod.host", "port": 5432, "database": "mydb" }
+      }
     }
   }
 }
 ```
 
-Passwords are never written to disk.
+`credentials.enc` format:
+
+```json
+{
+  "version": 1,
+  "kdf": { "algorithm": "PBKDF2", "hash": "SHA-256", "iterations": 210000, "salt": "<base64>" },
+  "cipher": "AES-GCM",
+  "iv": "<base64>",
+  "ciphertext": "<base64>"
+}
+```
+
+The decrypted plaintext (browser-only) is `{ "<name>:<environment>": { "username": "...", "password": "..." }, ... }`. Passwords are never written to disk in plaintext, and the CLI process never decrypts this file.
+
+---
+
+## Local API
+
+`db-cli web` exposes a local-only Hono API on `127.0.0.1`, documented via an OpenAPI 3.1 document at `GET /api/openapi.json` (generated from the same zod schemas used to validate requests — no separate API docs UI). Every route except that one requires an `x-db-cli-token` header with the session token printed when the server starts.
 
 ---
 

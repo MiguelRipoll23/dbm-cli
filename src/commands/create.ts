@@ -1,13 +1,10 @@
-import { randomBytes } from "node:crypto";
 import { defineCommand } from "citty";
 import consola from "consola";
 import type { Engine, Environment } from "../core/domain/connection.js";
 import { VALID_ENGINES, VALID_ENVIRONMENTS } from "../core/domain/connection.js";
 import type { ConnectionService } from "../core/services/connection-service.js";
-import type { SecretResolver } from "../core/ports/secret-resolver.js";
-import { promptMaskedPassword, promptText } from "../utilities/prompt.js";
 
-export function makeCreateCommand(connectionService: ConnectionService, secretResolver: SecretResolver) {
+export function makeCreateCommand(connectionService: ConnectionService) {
   return defineCommand({
     meta: {
       name: "create",
@@ -67,29 +64,7 @@ export function makeCreateCommand(connectionService: ConnectionService, secretRe
         });
 
         consola.success(`Connection "${connectionName}" created successfully.`);
-
-        const storeAnswer = await promptText("Store database password in KeePass now? [Y/n]:");
-        if (storeAnswer === "" || storeAnswer.toLowerCase() === "y") {
-          const modeAnswer = await promptText("Enter password [m]anually or [g]enerate random? [m/g]:");
-
-          let password: string;
-          if (modeAnswer.toLowerCase() === "g") {
-            password = randomBytes(16).toString("base64url").slice(0, 20);
-            consola.info(`Generated password: ${password}`);
-            consola.warn("Save this password — it will not be shown again.");
-          } else {
-            password = await promptMaskedPassword("Database password");
-          }
-
-          const exists = await secretResolver.entryExists(connectionName, environment as Environment);
-          if (exists) {
-            consola.warn("KeePass entry already exists. Password not overwritten.");
-          } else {
-            const username = await promptText("Database username (for KeePass entry):");
-            await secretResolver.storePassword(connectionName, environment as Environment, username, password);
-            consola.success("Password stored in KeePass successfully.");
-          }
-        }
+        consola.info(`Run "db-cli web" to add credentials for this connection.`);
       } catch (error) {
         consola.error(error instanceof Error ? error.message : String(error));
         process.exit(1);

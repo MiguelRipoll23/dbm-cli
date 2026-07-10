@@ -1,5 +1,6 @@
+import { randomUUID } from "node:crypto";
 import type { Connection } from "../domain/connection.js";
-import { connectionSchema } from "../domain/connection.js";
+import { connectionSchema, HOSTNAME_LABEL_REGEX } from "../domain/connection.js";
 import type { ConnectionRepository } from "../ports/connection-repository.js";
 
 export class ConnectionService {
@@ -9,40 +10,52 @@ export class ConnectionService {
     return this.repository.list();
   }
 
-  async get(name: string, environment: string): Promise<Connection | undefined> {
-    return this.repository.get(name, environment);
+  async getById(id: string): Promise<Connection | undefined> {
+    return this.repository.getById(id);
   }
 
-  async create(connection: Connection): Promise<void> {
-    const existing = await this.repository.get(connection.name, connection.environment);
+  async getByName(name: string, environment: string): Promise<Connection | undefined> {
+    return this.repository.getByName(name, environment);
+  }
+
+  async create(connection: Omit<Connection, "id">): Promise<Connection> {
+    const withId: Connection = { ...connection, id: randomUUID() };
+    connectionSchema.parse(withId);
+    const existing = await this.repository.getByName(withId.name, withId.environment);
     if (existing !== undefined) {
-      throw new Error(`Connection "${connection.name}" in environment "${connection.environment}" already exists`);
+      throw new Error(`Connection "${withId.name}" in environment "${withId.environment}" already exists`);
     }
-    // Engine must be consistent across all environments of the same name
-    const all = await this.repository.list();
-    const sibling = all.find((c) => c.name === connection.name);
-    if (sibling !== undefined && sibling.engine !== connection.engine) {
-      throw new Error(
-        `Connection "${connection.name}" already uses engine "${sibling.engine}"; cannot create with engine "${connection.engine}"`,
-      );
-    }
-    await this.repository.save(connection);
+    await this.repository.save(withId);
+    return withId;
   }
 
-  async update(name: string, environment: string, updates: Partial<Omit<Connection, "name" | "environment" | "engine">>): Promise<void> {
-    const existing = await this.repository.get(name, environment);
+  async update(id: string, updates: Partial<Omit<Connection, "id">>): Promise<Connection> {
+    const existing = await this.repository.getById(id);
     if (existing === undefined) {
-      throw new Error(`Connection "${name}" in environment "${environment}" not found`);
+      throw new Error(`Connection "${id}" not found`);
     }
-    const merged = connectionSchema.parse({ ...existing, ...updates });
+
+    const merged = connectionSchema.parse({ ...existing, ...updates, id });
+
+    if (merged.name !== existing.name || merged.environment !== existing.environment) {
+      if (!HOSTNAME_LABEL_REGEX.test(merged.name)) {
+        throw new Error(`Invalid name "${merged.name}": must be a valid hostname label (alphanumeric and hyphens, no leading/trailing hyphen)`);
+      }
+      const collision = await this.repository.getByName(merged.name, merged.environment);
+      if (collision !== undefined && collision.id !== id) {
+        throw new Error(`Connection "${merged.name}" in environment "${merged.environment}" already exists`);
+      }
+    }
+
     await this.repository.save(merged);
+    return merged;
   }
 
-  async delete(name: string, environment: string): Promise<void> {
-    const existing = await this.repository.get(name, environment);
+  async delete(id: string): Promise<void> {
+    const existing = await this.repository.getById(id);
     if (existing === undefined) {
-      throw new Error(`Connection "${name}" in environment "${environment}" not found`);
+      throw new Error(`Connection "${id}" not found`);
     }
-    await this.repository.remove(name, environment);
+    await this.repository.remove(id);
   }
 }

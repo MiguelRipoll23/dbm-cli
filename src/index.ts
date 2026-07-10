@@ -1,10 +1,18 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { defineCommand, runMain } from "citty";
-import { JsonConnectionRepository } from "./adapters/json-connection-repository.js";
-import { KeepassxcSocketResolver } from "./adapters/keepassxc-socket-resolver.js";
+import { migrateJsonToSqlite } from "./adapters/migrate-json-to-sqlite.js";
+import { SqliteConnectionRepository } from "./adapters/sqlite-connection-repository.js";
+import { FileCredentialStore } from "./adapters/file-credential-store.js";
+import { WebSecretResolver } from "./adapters/web-secret-resolver.js";
 import { NativeClientLauncher } from "./adapters/native-client-launcher.js";
-import { getClientsDirectory, getConfigDirectory, getConnectionsFilePath } from "./config/paths.js";
+import {
+  getClientsDirectory,
+  getConnectionsDbPath,
+  getConnectionsFilePath,
+  getCredentialRekeyMapPath,
+  getCredentialsFilePath,
+} from "./config/paths.js";
 import { ConnectionService } from "./core/services/connection-service.js";
 import { ConnectService } from "./core/services/connect-service.js";
 import { makeListCommand } from "./commands/list.js";
@@ -12,16 +20,18 @@ import { makeCreateCommand } from "./commands/create.js";
 import { makeUpdateCommand } from "./commands/update.js";
 import { makeDeleteCommand } from "./commands/delete.js";
 import { makeConnectCommand } from "./commands/connect.js";
-import { makeKeepassStoreCommand } from "./commands/keepass-store.js";
+import { makeWebCommand } from "./commands/web.js";
 import { makeClientInstallCommand } from "./commands/client-install.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
 
-const configDirectory = getConfigDirectory();
-const repository = new JsonConnectionRepository(getConnectionsFilePath());
+await migrateJsonToSqlite(getConnectionsFilePath(), getConnectionsDbPath(), getCredentialRekeyMapPath());
+
+const repository = new SqliteConnectionRepository(getConnectionsDbPath());
 const connectionService = new ConnectionService(repository);
-const secretResolver = new KeepassxcSocketResolver(configDirectory);
+const credentialStore = new FileCredentialStore(getCredentialsFilePath());
+const secretResolver = new WebSecretResolver(connectionService, credentialStore);
 
 const clientLauncher = new NativeClientLauncher(getClientsDirectory());
 const connectService = new ConnectService(repository, secretResolver, clientLauncher);
@@ -34,11 +44,11 @@ const rootCommand = defineCommand({
   },
   subCommands: {
     list: makeListCommand(connectionService),
-    create: makeCreateCommand(connectionService, secretResolver),
+    create: makeCreateCommand(connectionService),
     update: makeUpdateCommand(connectionService),
     delete: makeDeleteCommand(connectionService),
     connect: makeConnectCommand(connectService),
-    "keepass-store": makeKeepassStoreCommand(connectionService, secretResolver),
+    web: makeWebCommand(connectionService, credentialStore),
     "client-install": makeClientInstallCommand(),
   },
 });

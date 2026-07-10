@@ -23,7 +23,13 @@ export function makeDeleteCommand(connectionService: ConnectionService) {
           process.exit(1);
         }
 
-        await connectionService.delete(name, environment);
+        const existing = await connectionService.getByName(name, environment);
+        if (existing === undefined) {
+          consola.error(`Connection "${name}" in environment "${environment}" not found`);
+          process.exit(1);
+        }
+
+        await connectionService.delete(existing.id);
         consola.success(`Connection "${name}" (${environment}) deleted successfully.`);
       } catch (error) {
         consola.error(error instanceof Error ? error.message : String(error));

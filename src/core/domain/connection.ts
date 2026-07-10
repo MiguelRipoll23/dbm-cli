@@ -9,6 +9,7 @@ export type Environment = "development" | "staging" | "production" | "local";
 export const VALID_ENVIRONMENTS: Environment[] = ["development", "staging", "production", "local"];
 
 export type Connection = {
+  id: string;
   name: string;
   engine: Engine;
   host: string;
@@ -19,8 +20,11 @@ export type Connection = {
   options?: Record<string, string>;
 };
 
+export const HOSTNAME_LABEL_REGEX = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
+
 export const connectionSchema = z.object({
-  name: z.string(),
+  id: z.uuid(),
+  name: z.string().regex(HOSTNAME_LABEL_REGEX, "must be a valid hostname label (alphanumeric and hyphens, no leading/trailing hyphen)"),
   engine: z.enum(["mssql", "oracle", "mariadb", "postgres"]),
   host: z.string(),
   port: z.number().int().positive(),
@@ -29,5 +33,8 @@ export const connectionSchema = z.object({
   readOnly: z.boolean().optional(),
   options: z.record(z.string(), z.string()).optional(),
 });
+
+// Fields the client can set at creation time; the id is generated server-side.
+export const newConnectionSchema = connectionSchema.omit({ id: true });
 
 export type ConnectionWithCredentials = Connection & { username: string };

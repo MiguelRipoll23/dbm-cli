@@ -39,6 +39,19 @@ export function PendingConnectPage({ requestId, pending }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Once the credential has been delivered to the waiting CLI, this tab has
+  // served its purpose. Auto-close it after a brief pause so the user sees
+  // the confirmation, instead of relying on them to close it manually. If
+  // the browser refuses to close the tab (e.g. it wasn't opened via script),
+  // window.close() is a silent no-op and the confirmation card stays visible.
+  useEffect(() => {
+    if (!resolved) return;
+    const timer = window.setTimeout(() => {
+      window.close();
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [resolved]);
+
   const key = pending ? credentialKey(pending.connectionId) : null;
   const existingCredential = key && vault ? vault.credentials[key] : undefined;
 
@@ -110,7 +123,7 @@ export function PendingConnectPage({ requestId, pending }: Props) {
         <Alert>
           <CheckCircle2Icon />
           <AlertTitle>You can return to the terminal now</AlertTitle>
-          <AlertDescription>This tab can be closed.</AlertDescription>
+          <AlertDescription>This tab will close itself in a moment.</AlertDescription>
         </Alert>
       </CenteredCard>
     );

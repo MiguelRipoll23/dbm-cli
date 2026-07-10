@@ -165,13 +165,15 @@ describe("ConnectionService", () => {
     );
   });
 
-  it("update throws if the new name is invalid", async () => {
+  it("update allows free-text names, including ones that aren't valid hostname labels", async () => {
     const repository = new InMemoryConnectionRepository();
     const service = new ConnectionService(repository);
 
     const created = await service.create(makeConnection("alpha", "development"));
 
-    await assert.rejects(() => service.update(created.id, { name: "-bad-name-" }));
+    const updated = await service.update(created.id, { name: "My Prod DB (east)" });
+
+    assert.equal(updated.name, "My Prod DB (east)");
   });
 
   it("delete removes the connection", async () => {

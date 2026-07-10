@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/app/password-input";
 import { CloseWebButton } from "@/components/app/close-web-button";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { api } from "@/lib/api";
 import {
   decryptEnvelope,
@@ -102,19 +103,22 @@ function CenteredCard({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="flex-row items-start justify-between">
-          <div>
+    <div className="flex min-h-svh flex-col p-4">
+      <header className="flex items-center justify-end gap-2">
+        <ThemeToggle />
+        <CloseWebButton />
+      </header>
+      <div className="flex flex-1 items-center justify-center">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <LockIcon className="size-5" /> {title}
             </CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </div>
-          <CloseWebButton />
-        </CardHeader>
-        {children && <CardContent>{children}</CardContent>}
-      </Card>
+            <CardDescription className="mt-2">{description}</CardDescription>
+          </CardHeader>
+          {children && <CardContent>{children}</CardContent>}
+        </Card>
+      </div>
     </div>
   );
 }

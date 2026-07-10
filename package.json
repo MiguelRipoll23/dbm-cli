@@ -10,7 +10,7 @@
     "db": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc && node scripts/copy-web-ui.mjs",
+    "build": "npm run build:web && tsc && node scripts/copy-web-ui.mjs",
     "build:web": "cd web && pnpm install && pnpm build",
     "test": "node --test dist/core/services/connection-service.test.js dist/constants/engines.test.js dist/adapters/native-client-launcher.test.js dist/adapters/sqlite-connection-repository.test.js dist/web/schemas/credentials.test.js dist/web/app.test.js"
   },

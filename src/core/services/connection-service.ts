@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Connection } from "../domain/connection.js";
-import { connectionSchema, HOSTNAME_LABEL_REGEX } from "../domain/connection.js";
+import { connectionSchema } from "../domain/connection.js";
 import type { ConnectionRepository } from "../ports/connection-repository.js";
 
 export class ConnectionService {
@@ -38,9 +38,6 @@ export class ConnectionService {
     const merged = connectionSchema.parse({ ...existing, ...updates, id });
 
     if (merged.name !== existing.name || merged.environment !== existing.environment) {
-      if (!HOSTNAME_LABEL_REGEX.test(merged.name)) {
-        throw new Error(`Invalid name "${merged.name}": must be a valid hostname label (alphanumeric and hyphens, no leading/trailing hyphen)`);
-      }
       const collision = await this.repository.getByName(merged.name, merged.environment);
       if (collision !== undefined && collision.id !== id) {
         throw new Error(`Connection "${merged.name}" in environment "${merged.environment}" already exists`);

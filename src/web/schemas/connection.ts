@@ -1,14 +1,12 @@
 import { z } from "zod";
-import { HOSTNAME_LABEL_REGEX, VALID_ENGINES, VALID_ENVIRONMENTS } from "../../core/domain/connection.js";
+import { VALID_ENGINES, VALID_ENVIRONMENTS } from "../../core/domain/connection.js";
 
 // ponytail: mirrors core/domain/connection.ts connectionSchema — kept
 // separate since it's used purely for wire validation in this transport
 // layer. Reducible if the duplication ever becomes a maintenance burden.
 export const connectionSchema = z.object({
   id: z.uuid(),
-  name: z
-    .string()
-    .regex(HOSTNAME_LABEL_REGEX, "must be a valid hostname label (alphanumeric and hyphens, no leading/trailing hyphen)"),
+  name: z.string().min(1, "name is required"),
   engine: z.enum(VALID_ENGINES),
   host: z.string(),
   port: z.number().int().positive(),

@@ -20,11 +20,9 @@ export type Connection = {
   options?: Record<string, string>;
 };
 
-export const HOSTNAME_LABEL_REGEX = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
-
 export const connectionSchema = z.object({
   id: z.uuid(),
-  name: z.string().regex(HOSTNAME_LABEL_REGEX, "must be a valid hostname label (alphanumeric and hyphens, no leading/trailing hyphen)"),
+  name: z.string().min(1, "name is required"),
   engine: z.enum(["mssql", "oracle", "mariadb", "postgres"]),
   host: z.string(),
   port: z.number().int().positive(),

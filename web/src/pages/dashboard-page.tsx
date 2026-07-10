@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { PlusIcon, PencilIcon, Trash2Icon, DatabaseIcon, SettingsIcon } from "lucide-react";
+import { PlusIcon, PencilIcon, Trash2Icon, SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { ConnectionFormDialog } from "@/components/app/connection-form-dialog";
 import { DeleteConnectionDialog } from "@/components/app/delete-connection-dialog";
@@ -43,13 +43,13 @@ export function DashboardPage() {
     void loadConnections();
   }, [loadConnections]);
 
+  const handleConnectionUpdated = useCallback((updated: Connection) => {
+    setConnections((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  }, []);
+
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <header className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <DatabaseIcon className="size-6" />
-          <h1 className="text-xl font-semibold">db-cli connections</h1>
-        </div>
+      <header className="mb-6 flex items-center justify-end">
         <div className="flex items-center gap-2">
           <Button onClick={() => setCreateOpen(true)}>
             <PlusIcon /> New connection
@@ -67,7 +67,6 @@ export function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle>Connections</CardTitle>
-          <CardDescription>All connections registered with db-cli, across environments.</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -137,7 +136,7 @@ export function DashboardPage() {
           mode="edit"
           open={editTarget !== null}
           onOpenChange={(open) => !open && setEditTarget(null)}
-          onSaved={loadConnections}
+          onSaved={handleConnectionUpdated}
           connection={editTarget}
         />
       )}

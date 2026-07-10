@@ -48,7 +48,7 @@ type EditProps = {
   mode: "edit";
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaved: () => void;
+  onSaved: (updated: Connection) => void;
   connection: Connection;
 };
 
@@ -295,7 +295,7 @@ function EditConnectionDialog({ open, onOpenChange, onSaved, connection }: EditP
   async function onSubmit(values: EditConnectionFormValues) {
     setSubmitting(true);
     try {
-      await api.updateConnection(connection.id, {
+      const updated = await api.updateConnection(connection.id, {
         name: values.name,
         engine: values.engine,
         environment: values.environment,
@@ -305,10 +305,11 @@ function EditConnectionDialog({ open, onOpenChange, onSaved, connection }: EditP
         readOnly: values.readOnly,
         options: optionsToRecord(options),
       });
+      if (!updated) throw new Error("Failed to update connection");
 
       toast.success(`Connection "${values.name}" updated`);
       onOpenChange(false);
-      onSaved();
+      onSaved(updated);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update connection");
     } finally {

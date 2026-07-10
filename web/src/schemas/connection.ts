@@ -1,13 +1,7 @@
 import { z } from "zod";
-import { HOSTNAME_LABEL_REGEX, VALID_ENGINES, VALID_ENVIRONMENTS } from "@/constants/connection";
+import { VALID_ENGINES, VALID_ENVIRONMENTS } from "@/constants/connection";
 
-const hostnameLabel = z
-  .string()
-  .min(1, "Required")
-  .regex(
-    HOSTNAME_LABEL_REGEX,
-    "Must be a valid hostname label (alphanumeric and hyphens, no leading/trailing hyphen)",
-  );
+const connectionName = z.string().min(1, "Required");
 
 const optionsField = z
   .array(z.object({ key: z.string().min(1, "Required"), value: z.string() }))
@@ -16,7 +10,7 @@ const optionsField = z
 // Used by the "create connection" dialog: full metadata plus an optional
 // credential pair (username/password) to seed the encrypted map with.
 export const createConnectionFormSchema = z.object({
-  name: hostnameLabel,
+  name: connectionName,
   engine: z.enum(VALID_ENGINES),
   host: z.string().min(1, "Required"),
   port: z.number({ error: "Required" }).int().positive("Must be a positive integer"),
@@ -40,7 +34,7 @@ export type CreateConnectionFormOutput = z.output<typeof createConnectionFormSch
 // are edited separately via CredentialsDialog (credentialOnlyFormSchema
 // below), not as part of this form.
 export const editConnectionFormSchema = z.object({
-  name: hostnameLabel,
+  name: connectionName,
   engine: z.enum(VALID_ENGINES),
   environment: z.enum(VALID_ENVIRONMENTS),
   host: z.string().min(1, "Required"),

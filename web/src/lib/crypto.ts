@@ -164,10 +164,8 @@ export async function decryptEnvelope(
   }
 }
 
-// The credentials map is keyed by the connection's stable id — this used to
-// be `${name}:${environment}`, but that broke whenever a connection was
-// renamed (the CLI can't touch the encrypted vault). See the rekey flow in
-// vault-context.tsx, which migrates any old-format keys on first unlock.
+// The credentials map is keyed by the connection's stable id, so renaming a
+// connection never invalidates its stored credential.
 export function credentialKey(id: string): string {
   return id;
 }

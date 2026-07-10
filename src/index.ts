@@ -1,18 +1,11 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { defineCommand, runMain } from "citty";
-import { migrateJsonToSqlite } from "./adapters/migrate-json-to-sqlite.js";
 import { SqliteConnectionRepository } from "./adapters/sqlite-connection-repository.js";
 import { FileCredentialStore } from "./adapters/file-credential-store.js";
 import { WebSecretResolver } from "./adapters/web-secret-resolver.js";
 import { NativeClientLauncher } from "./adapters/native-client-launcher.js";
-import {
-  getClientsDirectory,
-  getConnectionsDbPath,
-  getConnectionsFilePath,
-  getCredentialRekeyMapPath,
-  getCredentialsFilePath,
-} from "./config/paths.js";
+import { getClientsDirectory, getConnectionsDbPath, getCredentialsFilePath } from "./config/paths.js";
 import { ConnectionService } from "./core/services/connection-service.js";
 import { ConnectService } from "./core/services/connect-service.js";
 import { makeListCommand } from "./commands/list.js";
@@ -25,8 +18,6 @@ import { makeClientInstallCommand } from "./commands/client-install.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
-
-await migrateJsonToSqlite(getConnectionsFilePath(), getConnectionsDbPath(), getCredentialRekeyMapPath());
 
 const repository = new SqliteConnectionRepository(getConnectionsDbPath());
 const connectionService = new ConnectionService(repository);

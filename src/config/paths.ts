@@ -5,16 +5,8 @@ export function getConfigDirectory(): string {
   return path.join(os.homedir(), ".db-cli");
 }
 
-export function getConnectionsFilePath(): string {
-  return path.join(getConfigDirectory(), "connections.json");
-}
-
 export function getConnectionsDbPath(): string {
   return path.join(getConfigDirectory(), "connections.db");
-}
-
-export function getCredentialRekeyMapPath(): string {
-  return path.join(getConfigDirectory(), "credential-rekey.json");
 }
 
 export function getCredentialsFilePath(): string {

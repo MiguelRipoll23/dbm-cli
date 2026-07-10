@@ -81,9 +81,6 @@ export const api = {
   deleteConnection: (id: string) =>
     request<void>(`/api/connections/${encodeURIComponent(id)}`, { method: "DELETE" }),
 
-  getCredentialRekeyMap: () =>
-    request<Record<string, string>>("/api/credentials/rekey-map").then((r) => r ?? {}),
-
   getCredentialsEnvelope: async (): Promise<CredentialsEnvelope | null> => {
     try {
       const envelope = await request<CredentialsEnvelope>("/api/credentials/envelope");

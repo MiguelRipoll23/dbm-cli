@@ -57,16 +57,6 @@ const validConnection = {
   environment: "development" as const,
 };
 
-describe("web API — OpenAPI document", () => {
-  it("GET /api/openapi.json returns a valid OpenAPI 3.1 document without requiring a token", async () => {
-    const { app } = makeTestApp();
-    const res = await app.request("/api/openapi.json");
-    assert.equal(res.status, 200);
-    const doc = (await res.json()) as { openapi: string };
-    assert.equal(doc.openapi, "3.1.0");
-  });
-});
-
 describe("web API — auth middleware", () => {
   it("rejects requests without the session token", async () => {
     const { app } = makeTestApp();
@@ -90,9 +80,8 @@ describe("web API — connections CRUD + zod validation", () => {
       body: JSON.stringify({ name: "bad", engine: "not-a-real-engine" }),
     });
     assert.equal(res.status, 400);
-    const body = (await res.json()) as { error?: { code: string; message: string } } | { success: false };
-    // Hono's default validation-error hook shape includes "success: false"; ours (ApiError) includes "error".
-    assert.ok("error" in body || "success" in body);
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    assert.equal(body.error.code, "VALIDATION_ERROR");
   });
 
   it("accepts a valid POST body, generates an id, and returns 201", async () => {
@@ -191,13 +180,6 @@ describe("web API — credentials envelope", () => {
     assert.equal(getRes.status, 200);
     const stored = await getRes.json();
     assert.deepEqual(stored, envelope);
-  });
-
-  it("returns an empty rekey map when no migration rekey file is pending", async () => {
-    const { app, token } = makeTestApp();
-    const res = await app.request("/api/credentials/rekey-map", { headers: { "x-db-cli-token": token } });
-    assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), {});
   });
 });
 

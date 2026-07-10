@@ -1,6 +1,6 @@
 {
   "name": "db-cli",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -12,18 +12,17 @@
   "scripts": {
     "build": "tsc && node scripts/copy-web-ui.mjs",
     "build:web": "cd web && pnpm install && pnpm build",
-    "test": "node --test dist/core/services/connection-service.test.js dist/constants/engines.test.js dist/adapters/native-client-launcher.test.js dist/adapters/sqlite-connection-repository.test.js dist/adapters/migrate-json-to-sqlite.test.js dist/web/schemas/credentials.test.js dist/web/app.test.js"
+    "test": "node --test dist/core/services/connection-service.test.js dist/constants/engines.test.js dist/adapters/native-client-launcher.test.js dist/adapters/sqlite-connection-repository.test.js dist/web/schemas/credentials.test.js dist/web/app.test.js"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.8",
-    "@hono/zod-openapi": "^1.4.0",
-    "citty": "^0.1.6",
-    "consola": "^3.2.3",
+    "citty": "^0.2.2",
+    "consola": "^3.4.2",
     "hono": "^4.12.29",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^22.20.1",
-    "typescript": "^5.5.0"
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2"
   }
 }

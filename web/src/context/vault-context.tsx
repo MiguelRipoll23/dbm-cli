@@ -10,37 +10,9 @@ type UnlockedVault = {
   credentials: CredentialsMap;
 };
 
-/**
- * One-time migration step, run right after every unlock: the JSON->SQLite
- * migration (see migrate-json-to-sqlite.ts on the backend) generates a
- * "name:environment" -> connectionId map for any credentials that predate
- * connection ids. If that map is non-empty, re-key the matching vault
- * entries to the new id and re-persist. The backend serves the map once and
- * then deletes it, so this is a no-op on every unlock after the first.
- * Returns the re-keyed credentials map, or null if there was nothing to do.
- */
-async function rekeyCredentials(vault: UnlockedVault): Promise<CredentialsMap | null> {
-  const rekeyMap = await api.getCredentialRekeyMap();
-  const oldKeys = Object.keys(rekeyMap).filter((oldKey) => oldKey in vault.credentials);
-  if (oldKeys.length === 0) return null;
-
-  const nextCredentials = { ...vault.credentials };
-  for (const oldKey of oldKeys) {
-    nextCredentials[rekeyMap[oldKey]!] = nextCredentials[oldKey]!;
-    delete nextCredentials[oldKey];
-  }
-
-  const envelope = await encryptEnvelopeWithKey(vault.key, vault.salt, vault.iterations, nextCredentials);
-  await api.putCredentialsEnvelope(envelope);
-  return nextCredentials;
-}
-
 type VaultContextValue = {
   vault: UnlockedVault | null;
-  /**
-   * Populated once, right after a successful unlock or first-time creation.
-   * Also triggers the one-time credential rekey (see rekeyCredentials below).
-   */
+  /** Populated once, right after a successful unlock or first-time creation. */
   unlock: (vault: UnlockedVault) => void;
   lock: () => void;
   /**
@@ -70,9 +42,6 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback((next: UnlockedVault) => {
     setVault(next);
-    void rekeyCredentials(next).then((rekeyed) => {
-      if (rekeyed) setVault({ ...next, credentials: rekeyed });
-    });
   }, []);
 
   const lock = useCallback(() => {

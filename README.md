@@ -1,12 +1,12 @@
 # db-cli
 
-`db-cli` is a command-line tool for managing and connecting to relational databases across multiple environments. Connection metadata lives in `~/.db-cli/connections.json` (plain text — no passwords). Credentials (username/password per connection) live encrypted in `~/.db-cli/credentials.enc`, unlocked through a local web UI (`db-cli web`) with a master password. Decryption happens entirely in the browser via WebCrypto — the CLI process never sees the master password or any credential it isn't actively using to connect. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the resolved password injected the way each client expects.
+`db-cli` is a command-line tool for managing and connecting to relational databases across multiple environments. Connection metadata lives in `~/.db-cli/connections.db` (SQLite, no passwords), keyed by a stable id. Credentials (username/password per connection) live encrypted in `~/.db-cli/credentials.enc`, unlocked through a local web UI (`db-cli web`) with a master password. Decryption happens entirely in the browser via WebCrypto — the CLI process never sees the master password or any credential it isn't actively using to connect. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the resolved password injected the way each client expects.
 
 ---
 
 ## Prerequisites
 
-- **Node.js 20+**
+- **Node.js 22+** (uses the built-in `node:sqlite` module)
 - A modern browser (for the local web UI)
 - The relevant vendor client binary available on `PATH` (or installed via `db-cli client-install`) for each engine you intend to use:
 
@@ -90,7 +90,7 @@ db-cli update mydb development --host newhost --port 5433
 
 `environment` is the second positional argument — it identifies which environment entry to update. Engine cannot be changed via update; delete and recreate if needed.
 
-Renaming (`--rename`) only affects `connections.json`; it cannot touch the encrypted `credentials.enc` blob. After a rename, open `db-cli web` and use the orphaned-credentials panel to reassign the old `name:environment` credential entry to the new name.
+Renaming (`--rename`) only affects the connection's stored name; the credential stays attached to it, since credentials are keyed by the connection's stable id rather than its name.
 
 ### Delete a connection
 
@@ -137,26 +137,9 @@ All files are stored under `~/.db-cli/`:
 
 | File | Contents |
 |------|----------|
-| `connections.json` | Connection metadata (no passwords), versioned envelope |
-| `credentials.enc` | Encrypted (AES-256-GCM, PBKDF2-derived key) credentials, keyed by `name:environment` |
+| `connections.db` | Connection metadata (no passwords), SQLite, one row per connection keyed by a stable uuid |
+| `credentials.enc` | Encrypted (AES-256-GCM, PBKDF2-derived key) credentials, keyed by connection id |
 | `clients/` | Database client binaries installed via `client-install` |
-
-`connections.json` format (v2, versioned envelope):
-
-```json
-{
-  "version": 2,
-  "connections": {
-    "mydb": {
-      "engine": "postgres",
-      "environments": {
-        "development": { "host": "dev.host", "port": 5432, "database": "mydb_dev" },
-        "production":  { "host": "prod.host", "port": 5432, "database": "mydb" }
-      }
-    }
-  }
-}
-```
 
 `credentials.enc` format:
 
@@ -170,13 +153,13 @@ All files are stored under `~/.db-cli/`:
 }
 ```
 
-The decrypted plaintext (browser-only) is `{ "<name>:<environment>": { "username": "...", "password": "..." }, ... }`. Passwords are never written to disk in plaintext, and the CLI process never decrypts this file.
+The decrypted plaintext (browser-only) is `{ "<connectionId>": { "username": "...", "password": "..." }, ... }`. Passwords are never written to disk in plaintext, and the CLI process never decrypts this file.
 
 ---
 
 ## Local API
 
-`db-cli web` exposes a local-only Hono API on `127.0.0.1`, documented via an OpenAPI 3.1 document at `GET /api/openapi.json` (generated from the same zod schemas used to validate requests — no separate API docs UI). Every route except that one requires an `x-db-cli-token` header with the session token printed when the server starts.
+`db-cli web` exposes a local-only Hono API on `127.0.0.1`, validated with zod. Every route requires an `x-db-cli-token` header with the session token printed when the server starts.
 
 ---
 

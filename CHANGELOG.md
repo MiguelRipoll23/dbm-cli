@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-07-10
+
+### Removed
+
+- OpenAPI document generation (`@hono/zod-openapi`, `GET /api/openapi.json`). Nothing consumed it — the web UI already talks to the API through a hand-written fetch client. Routes now use plain Hono with manual zod validation (`schema.safeParse`); request/response shapes and status codes are unchanged.
+- One-time `connections.json` → SQLite migration (`migrate-json-to-sqlite`), the legacy JSON reader (`json-connection-repository`, supporting the old v0/v1/v2 on-disk formats), and the credential-rekey flow it produced (`GET /api/credentials/rekey-map`, `getCredentialRekeyMapPath`, and the frontend rekey step in `vault-context.tsx`). Anyone still on `connections.json` should upgrade through `0.5.x` first to run the migration before updating further. `connections.db` (SQLite) remains the active store — untouched by this change.
+
+### Changed
+
+- Updated all dependencies to latest, including major version bumps: TypeScript 5 → 7, `citty` 0.1 → 0.2, `@types/node` 22 → 26 (root) and 24 → 26 (web).
+
 ## [0.5.0] - 2026-07-10
 
 ### Added

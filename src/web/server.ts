@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { serve, type ServerType } from "@hono/node-server";
 import type { ConnectionService } from "../core/services/connection-service.js";
 import type { CredentialStore } from "../core/ports/credential-store.js";
-import { getCredentialRekeyMapPath } from "../config/paths.js";
 import { buildApp } from "./app.js";
 import type { UnlockBroker } from "./unlock-broker.js";
 
@@ -46,7 +45,7 @@ export async function startWebServer(
     requestShutdown = resolve;
   });
 
-  const { app, token, broker } = buildApp(connectionService, credentialStore, STATIC_ROOT, () => requestShutdown(), getCredentialRekeyMapPath());
+  const { app, token, broker } = buildApp(connectionService, credentialStore, STATIC_ROOT, () => requestShutdown());
 
   let server: ServerType;
   try {

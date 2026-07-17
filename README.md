@@ -7,7 +7,7 @@ unlocked through a local web UI with a master password.
 ## Installation
 
 ```bash
-npx dbm-cli <command>
+npx @miguelripoll23/dbm-cli <command>
 ```
 
 ## Usage

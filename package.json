@@ -1,12 +1,12 @@
 {
-  "name": "dbm-cli",
-  "version": "1.0.0",
+  "name": "@miguelripoll23/dbm-cli",
+  "version": "1.0.1",
   "type": "module",
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "dbm": "./dist/index.js"
+    "dbm": "dist/index.js"
   },
   "scripts": {
     "build": "npm run build:web && tsc && node scripts/copy-web-ui.mjs",
@@ -17,7 +17,7 @@
     "@hono/node-server": "^2.0.8",
     "citty": "^0.2.2",
     "consola": "^3.4.2",
-    "dbm-cli": "link:",
+    "@miguelripoll23/dbm-cli": "link:",
     "hono": "^4.12.29",
     "zod": "^4.4.3"
   },

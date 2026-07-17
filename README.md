@@ -1,30 +1,12 @@
 # dbm-cli
 
-`dbm-cli` is a CLI for managing and connecting to relational databases across multiple environments. Connections stored in SQLite, credentials encrypted via WebCrypto, unlocked through a local web UI with a master password.
-
----
-
-## Prerequisites
-
-- **Node.js 22+** (uses the built-in `node:sqlite` module)
-- The relevant vendor client binary available on `PATH` (or installed via `dbm-cli client-install`) for each engine you intend to use:
-
-| Engine     | Required binary |
-|------------|-----------------|
-| `mssql`    | `sqlcmd`        |
-| `oracle`   | `sqlplus`       |
-| `mariadb`  | `mariadb`       |
-| `postgres` | `psql`          |
-
----
+`dbm-cli` is a CLI for managing and connecting to databases across multiple environments. Connections stored in SQLite, credentials encrypted and unlocked through a local web UI with a master password.
 
 ## Installation
 
 ```bash
 npx dbm-cli <command>
 ```
-
----
 
 ## Usage
 
@@ -113,8 +95,6 @@ If a credential is needed, `connect` starts the local web server (if not already
 dbm-cli client-install postgres   # download psql to ~/.dbm-cli/clients/
 ```
 
----
-
 ## Supported Engines
 
 | Engine     | Client binary | Password injection          | Read-only support      |
@@ -123,8 +103,6 @@ dbm-cli client-install postgres   # download psql to ~/.dbm-cli/clients/
 | `oracle`   | `sqlplus`     | `CONNECT` string via stdin  | Not enforced by client |
 | `mariadb`  | `mariadb`     | `MYSQL_PWD` env var         | Session `SET transaction_read_only` |
 | `postgres` | `psql`        | `PGPASSWORD` env var        | `PGOPTIONS` env var    |
-
----
 
 ## Configuration Storage
 
@@ -149,15 +127,3 @@ All files are stored under `~/.dbm-cli/`:
 ```
 
 The decrypted plaintext (browser-only) is `{ "<connectionId>": { "username": "...", "password": "..." }, ... }`. Passwords are never written to disk in plaintext, and the CLI process never decrypts this file.
-
----
-
-## Local API
-
-`dbm-cli web` exposes a local-only Hono API on `127.0.0.1`, validated with zod. Every route requires an `x-dbm-cli-token` header with the session token printed when the server starts.
-
----
-
-## License
-
-MIT

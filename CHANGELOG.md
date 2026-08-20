@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 - 2026-08-20
+
+## What's Changed
+* Bump version to 1.1.0 by @MiguelRipoll23 in https://github.com/MiguelRipoll23/dbm-cli/pull/1
+
+## New Contributors
+* @MiguelRipoll23 made their first contribution in https://github.com/MiguelRipoll23/dbm-cli/pull/1
+
+**Full Changelog**: https://github.com/MiguelRipoll23/dbm-cli/commits/1.1.0
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

@@ -4,21 +4,6 @@ Command-line tool for managing and connecting to relational databases across mul
 
 ---
 
-## Prerequisites
-
-- **Node.js 22+** (uses the built-in `node:sqlite` module)
-- A modern browser (for the local web UI)
-- The relevant vendor client binary available on `PATH` (or installed via `dbm client-install`) for each engine you intend to use:
-
-| Engine     | Required binary |
-|------------|-----------------|
-| `mssql`    | `sqlcmd`        |
-| `oracle`   | `sqlplus`       |
-| `mariadb`  | `mariadb`       |
-| `postgres` | `psql`          |
-
----
-
 ## Installation
 
 ```bash

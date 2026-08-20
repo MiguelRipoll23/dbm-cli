@@ -149,7 +149,6 @@ jobs:
 
       - name: Publish package
         run: |
-          pnpm publish --access public --no-git-checks --tag "$(if [[ $NPM_VERSION == *-* ]]; then echo beta; else echo latest; fi)"
+          pnpm publish --access public --no-git-checks --provenance --tag "$(if [[ $NPM_VERSION == *-* ]]; then echo beta; else echo latest; fi)"
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_VERSION: ${{ needs.create-tag.outputs.tag-name }}

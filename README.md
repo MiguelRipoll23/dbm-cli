@@ -19,16 +19,6 @@ Either command installs the `dbm` binary on your `PATH`. Verify it with:
 ```bash
 dbm --help
 ```
-
-### Run from source (development)
-
-If you prefer to build and run from the repo instead of installing globally:
-
-```bash
-npm run build
-node ./dist/index.js <command>
-```
-
 ---
 
 ## Usage

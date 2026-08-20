@@ -22,10 +22,25 @@
 ## Installation
 
 ```bash
-# Install globally from the project directory
-npm install -g .
+# npm
+npm install --global @miguelripoll23/dbm-cli
 
-# Or run directly without installing
+# pnpm
+pnpm add --global @miguelripoll23/dbm-cli
+```
+
+Either command installs the `dbm` binary on your `PATH`. Verify it with:
+
+```bash
+dbm --help
+```
+
+### Run from source (development)
+
+If you prefer to build and run from the repo instead of installing globally:
+
+```bash
+npm run build
 node ./dist/index.js <command>
 ```
 

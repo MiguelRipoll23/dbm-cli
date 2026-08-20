@@ -1,6 +1,6 @@
 # dbm-cli
 
-`dbm-cli` is a command-line tool for managing and connecting to relational databases across multiple environments. Connection metadata lives in `~/.dbm/connections.db` (SQLite, no passwords), keyed by a stable id. Credentials (username/password per connection) live encrypted in `~/.dbm/credentials.enc`, unlocked through a local web UI (`dbm web`) with a master password. Decryption happens entirely in the browser via WebCrypto — the CLI process never sees the master password. While the vault is unlocked, the background daemon caches the decrypted connection credentials in memory only (never written to disk, 30-minute sliding TTL) so repeat connects skip reopening the browser. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the resolved password injected the way each client expects.
+Command-line tool for managing and connecting to relational databases across multiple environments.
 
 ---
 

@@ -12,6 +12,10 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MiguelRipoll23/dbm-cli.git"
+  },
   "scripts": {
     "build": "npm run build:web && tsc && node scripts/copy-web-ui.mjs",
     "build:web": "cd web && pnpm install && pnpm build",

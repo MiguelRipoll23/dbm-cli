@@ -18,6 +18,8 @@ export type Connection = {
   environment: Environment;
   readOnly?: boolean;
   options?: Record<string, string>;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export const connectionSchema = z.object({
@@ -30,9 +32,35 @@ export const connectionSchema = z.object({
   environment: z.enum(["development", "staging", "production", "local"]),
   readOnly: z.boolean().optional(),
   options: z.record(z.string(), z.string()).optional(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
-// Fields the client can set at creation time; the id is generated server-side.
-export const newConnectionSchema = connectionSchema.omit({ id: true });
+// Fields the client can set at creation time; id and timestamps are
+// generated server-side (see ConnectionService.create).
+export const newConnectionSchema = connectionSchema.omit({ id: true, createdAt: true, updatedAt: true });
 
 export type ConnectionWithCredentials = Connection & { username: string };
+
+export const SORTABLE_CONNECTION_FIELDS = ["name", "createdAt", "updatedAt"] as const;
+export type ConnectionSortField = (typeof SORTABLE_CONNECTION_FIELDS)[number];
+
+export type SortDirection = "asc" | "desc";
+
+export type ConnectionListQuery = {
+  search?: string;
+  sortBy?: ConnectionSortField;
+  sortDir?: SortDirection;
+  page?: number;
+  pageSize?: number;
+};
+
+export type ConnectionListResult = {
+  items: Connection[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+// Sentinel pageSize for callers (CLI) that want every row, bypassing pagination.
+export const UNPAGINATED = Number.MAX_SAFE_INTEGER;

@@ -8,7 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
-# dist is intentionally committed — db-cli ships the compiled SPA so
+# dist is intentionally committed — dbm-cli ships the compiled SPA so
 # `npm install` works without a frontend toolchain (Vite/pnpm) present.
 dist-ssr
 *.local

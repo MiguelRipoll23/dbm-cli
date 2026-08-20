@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import type { Connection } from "../core/domain/connection.js";
+import type { Connection, ConnectionListQuery, ConnectionListResult } from "../core/domain/connection.js";
 import type { ConnectionRepository } from "../core/ports/connection-repository.js";
 import type { CredentialStore } from "../core/ports/credential-store.js";
 import { ConnectionService } from "../core/services/connection-service.js";
@@ -9,8 +9,16 @@ import { buildApp } from "./app.js";
 
 class InMemoryConnectionRepository implements ConnectionRepository {
   private readonly store = new Map<string, Connection>();
-  async list(): Promise<Connection[]> {
-    return Array.from(this.store.values());
+  async list(query: ConnectionListQuery = {}): Promise<ConnectionListResult> {
+    const search = query.search?.trim().toLowerCase();
+    const items = Array.from(this.store.values()).filter(
+      (c) =>
+        !search ||
+        c.name.toLowerCase().includes(search) ||
+        c.host.toLowerCase().includes(search) ||
+        c.database.toLowerCase().includes(search),
+    );
+    return { items, total: items.length, page: query.page ?? 1, pageSize: query.pageSize ?? items.length };
   }
   async getById(id: string): Promise<Connection | undefined> {
     return this.store.get(id);
@@ -66,7 +74,7 @@ describe("web API — auth middleware", () => {
 
   it("rejects requests with the wrong token", async () => {
     const { app } = makeTestApp();
-    const res = await app.request("/api/connections", { headers: { "x-db-cli-token": "wrong" } });
+    const res = await app.request("/api/connections", { headers: { "x-dbm-cli-token": "wrong" } });
     assert.equal(res.status, 401);
   });
 });
@@ -76,7 +84,7 @@ describe("web API — connections CRUD + zod validation", () => {
     const { app, token } = makeTestApp();
     const res = await app.request("/api/connections", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify({ name: "bad", engine: "not-a-real-engine" }),
     });
     assert.equal(res.status, 400);
@@ -88,7 +96,7 @@ describe("web API — connections CRUD + zod validation", () => {
     const { app, token } = makeTestApp();
     const res = await app.request("/api/connections", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify(validConnection),
     });
     assert.equal(res.status, 201);
@@ -101,29 +109,61 @@ describe("web API — connections CRUD + zod validation", () => {
     const { app, token } = makeTestApp();
     await app.request("/api/connections", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify(validConnection),
     });
 
-    const res = await app.request("/api/connections", { headers: { "x-db-cli-token": token } });
+    const res = await app.request("/api/connections", { headers: { "x-dbm-cli-token": token } });
     assert.equal(res.status, 200);
-    const connections = (await res.json()) as Array<{ name: string }>;
-    assert.equal(connections.length, 1);
-    assert.equal(connections[0]!.name, "orders-db");
+    const result = (await res.json()) as { items: Array<{ name: string }>; total: number };
+    assert.equal(result.total, 1);
+    assert.equal(result.items.length, 1);
+    assert.equal(result.items[0]!.name, "orders-db");
+  });
+
+  it("rejects an invalid sortBy query param with 400", async () => {
+    const { app, token } = makeTestApp();
+    const res = await app.request("/api/connections?sortBy=nope", { headers: { "x-dbm-cli-token": token } });
+    assert.equal(res.status, 400);
+  });
+
+  it("filters by search across name, host, database", async () => {
+    const { app, token } = makeTestApp();
+    await app.request("/api/connections", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
+      body: JSON.stringify(validConnection),
+    });
+    await app.request("/api/connections", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
+      body: JSON.stringify({
+        ...validConnection,
+        name: "billing-db",
+        host: "billing.example.com",
+        database: "billing",
+        environment: "staging",
+      }),
+    });
+
+    const res = await app.request("/api/connections?search=orders", { headers: { "x-dbm-cli-token": token } });
+    const result = (await res.json()) as { items: Array<{ name: string }>; total: number };
+    assert.equal(result.total, 1);
+    assert.equal(result.items[0]!.name, "orders-db");
   });
 
   it("updates a connection by id, including name and engine", async () => {
     const { app, token } = makeTestApp();
     const createRes = await app.request("/api/connections", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify(validConnection),
     });
     const created = (await createRes.json()) as Connection;
 
     const updateRes = await app.request(`/api/connections/${created.id}`, {
       method: "PUT",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify({ name: "renamed-db", engine: "mssql" }),
     });
     assert.equal(updateRes.status, 200);
@@ -137,7 +177,7 @@ describe("web API — connections CRUD + zod validation", () => {
     const { app, token } = makeTestApp();
     const res = await app.request(`/api/connections/${randomUUID()}`, {
       method: "PUT",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify({ host: "other" }),
     });
     assert.equal(res.status, 404);
@@ -147,7 +187,7 @@ describe("web API — connections CRUD + zod validation", () => {
     const { app, token } = makeTestApp();
     const res = await app.request(`/api/connections/${randomUUID()}`, {
       method: "DELETE",
-      headers: { "x-db-cli-token": token },
+      headers: { "x-dbm-cli-token": token },
     });
     assert.equal(res.status, 404);
   });
@@ -156,7 +196,7 @@ describe("web API — connections CRUD + zod validation", () => {
 describe("web API — credentials envelope", () => {
   it("returns 404 before any envelope has been stored", async () => {
     const { app, token } = makeTestApp();
-    const res = await app.request("/api/credentials/envelope", { headers: { "x-db-cli-token": token } });
+    const res = await app.request("/api/credentials/envelope", { headers: { "x-dbm-cli-token": token } });
     assert.equal(res.status, 404);
   });
 
@@ -171,12 +211,12 @@ describe("web API — credentials envelope", () => {
     };
     const putRes = await app.request("/api/credentials/envelope", {
       method: "PUT",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify(envelope),
     });
     assert.equal(putRes.status, 204);
 
-    const getRes = await app.request("/api/credentials/envelope", { headers: { "x-db-cli-token": token } });
+    const getRes = await app.request("/api/credentials/envelope", { headers: { "x-dbm-cli-token": token } });
     assert.equal(getRes.status, 200);
     const stored = await getRes.json();
     assert.deepEqual(stored, envelope);
@@ -186,7 +226,7 @@ describe("web API — credentials envelope", () => {
 describe("web API — unlock broker", () => {
   it("pending-unlock is null when nothing is waiting", async () => {
     const { app, token } = makeTestApp();
-    const res = await app.request("/api/pending-unlock", { headers: { "x-db-cli-token": token } });
+    const res = await app.request("/api/pending-unlock", { headers: { "x-dbm-cli-token": token } });
     assert.equal(res.status, 200);
     assert.equal(await res.json(), null);
   });
@@ -195,7 +235,7 @@ describe("web API — unlock broker", () => {
     const { app, token } = makeTestApp();
     const res = await app.request("/api/unlock-request/does-not-exist/resolve", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify({ username: "u", password: "p" }),
     });
     assert.equal(res.status, 404);
@@ -203,12 +243,17 @@ describe("web API — unlock broker", () => {
 
   it("delivers a credential from resolve to the waiting broker.request() promise", async () => {
     const { app, token, broker } = makeTestApp();
-    const connection: Connection = { ...validConnection, id: randomUUID() };
+    const connection: Connection = {
+      ...validConnection,
+      id: randomUUID(),
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
     const { id, promise } = broker.request(connection);
 
     const res = await app.request(`/api/unlock-request/${id}/resolve`, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-db-cli-token": token },
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
       body: JSON.stringify({ username: "app", password: "s3cret" }),
     });
     assert.equal(res.status, 204);
@@ -230,7 +275,7 @@ describe("web API — shutdown", () => {
 
     const res = await app.request("/api/shutdown", {
       method: "POST",
-      headers: { "x-db-cli-token": token },
+      headers: { "x-dbm-cli-token": token },
     });
     assert.equal(res.status, 204);
 
@@ -242,12 +287,17 @@ describe("web API — shutdown", () => {
 
   it("rejects any pending unlock request with a clear message", async () => {
     const { app, token, broker } = makeTestApp();
-    const connection: Connection = { ...validConnection, id: randomUUID() };
+    const connection: Connection = {
+      ...validConnection,
+      id: randomUUID(),
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
     const { promise } = broker.request(connection);
 
     const res = await app.request("/api/shutdown", {
       method: "POST",
-      headers: { "x-db-cli-token": token },
+      headers: { "x-dbm-cli-token": token },
     });
     assert.equal(res.status, 204);
 
@@ -258,5 +308,36 @@ describe("web API — shutdown", () => {
     const { app } = makeTestApp();
     const res = await app.request("/api/shutdown", { method: "POST" });
     assert.equal(res.status, 401);
+  });
+});
+
+describe("web API — foreground prime forwarding", () => {
+  it("forwards a valid prime payload to onPrime and returns 204", async () => {
+    const repository = new InMemoryConnectionRepository();
+    const connectionService = new ConnectionService(repository);
+    const credentialStore = new InMemoryCredentialStore();
+    let forwarded: unknown;
+    const { app, token } = buildApp(connectionService, credentialStore, undefined, () => {}, undefined, async (creds) => {
+      forwarded = creds;
+    });
+
+    const payload = { "conn-1": { username: "app", password: "s3cret" } };
+    const res = await app.request("/api/daemon/credentials/prime", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
+      body: JSON.stringify(payload),
+    });
+    assert.equal(res.status, 204);
+    assert.deepEqual(forwarded, payload);
+  });
+
+  it("404s the prime route when no onPrime forwarder is wired (legacy no-op path)", async () => {
+    const { app, token } = makeTestApp();
+    const res = await app.request("/api/daemon/credentials/prime", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-dbm-cli-token": token },
+      body: JSON.stringify({}),
+    });
+    assert.equal(res.status, 404);
   });
 });

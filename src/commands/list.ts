@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import consola from "consola";
 import type { ConnectionService } from "../core/services/connection-service.js";
 import type { Connection } from "../core/domain/connection.js";
+import { UNPAGINATED } from "../core/domain/connection.js";
 
 const reset = "\x1b[0m";
 const bold = "\x1b[1m";
@@ -20,7 +21,8 @@ export function makeListCommand(connectionService: ConnectionService) {
     },
     async run({ args }) {
       try {
-        let connections = await connectionService.list();
+        const { items } = await connectionService.list({ pageSize: UNPAGINATED });
+        let connections = items;
 
         if (args.env) {
           connections = connections.filter((c) => c.environment === args.env);

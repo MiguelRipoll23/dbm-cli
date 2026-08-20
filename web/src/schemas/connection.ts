@@ -18,8 +18,8 @@ export const createConnectionFormSchema = z.object({
   environment: z.enum(VALID_ENVIRONMENTS),
   readOnly: z.boolean().optional(),
   options: optionsField,
-  username: z.string().min(1, "Required"),
-  password: z.string().min(1, "Required"),
+  username: z.string().trim().min(1, "Required"),
+  password: z.string().trim().min(1, "Required"),
 });
 
 // Use the pre-coercion "input" type for useForm's generic: react-hook-form
@@ -47,9 +47,12 @@ export const editConnectionFormSchema = z.object({
 export type EditConnectionFormValues = z.input<typeof editConnectionFormSchema>;
 export type EditConnectionFormOutput = z.output<typeof editConnectionFormSchema>;
 
+// .trim() catches stray leading/trailing whitespace from copy-paste — an
+// untrimmed credential silently breaks engines whose CONNECT syntax uses
+// whitespace as a token separator (e.g. Oracle's "CONNECT user/pass@...").
 export const credentialOnlyFormSchema = z.object({
-  username: z.string().min(1, "Required"),
-  password: z.string().min(1, "Required"),
+  username: z.string().trim().min(1, "Required"),
+  password: z.string().trim().min(1, "Required"),
 });
 
 export type CredentialOnlyFormValues = z.infer<typeof credentialOnlyFormSchema>;

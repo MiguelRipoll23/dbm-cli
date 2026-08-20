@@ -16,7 +16,7 @@ function readTokenFromUrl(): string | null {
  * Reads the `?token=` query param the CLI embeds in the URL it opens the
  * browser with, stores it in memory (React state) for the lifetime of the
  * tab, and mirrors it into the api.ts module so every fetch call attaches
- * the x-db-cli-token header automatically. Never persisted to storage.
+ * the x-dbm-cli-token header automatically. Never persisted to storage.
  *
  * The mirror into api.ts happens eagerly during render (via useState's
  * initializer), not in a useEffect — child components (e.g. UnlockPage) run

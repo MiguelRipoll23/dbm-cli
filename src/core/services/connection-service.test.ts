@@ -1,14 +1,15 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { Connection } from "../domain/connection.js";
+import type { Connection, ConnectionListQuery, ConnectionListResult } from "../domain/connection.js";
 import type { ConnectionRepository } from "../ports/connection-repository.js";
 import { ConnectionService } from "./connection-service.js";
 
 class InMemoryConnectionRepository implements ConnectionRepository {
   private readonly store = new Map<string, Connection>();
 
-  async list(): Promise<Connection[]> {
-    return Array.from(this.store.values());
+  async list(query: ConnectionListQuery = {}): Promise<ConnectionListResult> {
+    const items = Array.from(this.store.values());
+    return { items, total: items.length, page: query.page ?? 1, pageSize: query.pageSize ?? items.length };
   }
 
   async getById(id: string): Promise<Connection | undefined> {
@@ -30,7 +31,10 @@ class InMemoryConnectionRepository implements ConnectionRepository {
   }
 }
 
-function makeConnection(name: string, environment: Connection["environment"] = "development"): Omit<Connection, "id"> {
+function makeConnection(
+  name: string,
+  environment: Connection["environment"] = "development",
+): Omit<Connection, "id" | "createdAt" | "updatedAt"> {
   return {
     name,
     engine: "postgres",
@@ -49,11 +53,35 @@ describe("ConnectionService", () => {
     await service.create(makeConnection("alpha"));
     await service.create(makeConnection("beta"));
 
-    const connections = await service.list();
-    assert.equal(connections.length, 2);
-    const names = connections.map((c) => c.name);
+    const { items, total } = await service.list();
+    assert.equal(items.length, 2);
+    assert.equal(total, 2);
+    const names = items.map((c) => c.name);
     assert.ok(names.includes("alpha"));
     assert.ok(names.includes("beta"));
+  });
+
+  it("create stamps createdAt and updatedAt with the same timestamp", async () => {
+    const repository = new InMemoryConnectionRepository();
+    let clock = "2026-01-01T00:00:00.000Z";
+    const service = new ConnectionService(repository, () => clock);
+
+    const created = await service.create(makeConnection("stamped"));
+    assert.equal(created.createdAt, clock);
+    assert.equal(created.updatedAt, clock);
+  });
+
+  it("update preserves createdAt and bumps updatedAt", async () => {
+    const repository = new InMemoryConnectionRepository();
+    let clock = "2026-01-01T00:00:00.000Z";
+    const service = new ConnectionService(repository, () => clock);
+
+    const created = await service.create(makeConnection("bumped"));
+    clock = "2026-02-01T00:00:00.000Z";
+    const updated = await service.update(created.id, { host: "new-host" });
+
+    assert.equal(updated.createdAt, "2026-01-01T00:00:00.000Z");
+    assert.equal(updated.updatedAt, "2026-02-01T00:00:00.000Z");
   });
 
   it("create saves a new connection and assigns an id", async () => {
@@ -82,7 +110,10 @@ describe("ConnectionService", () => {
     const service = new ConnectionService(repository);
 
     await service.create(makeConnection("my-db", "development"));
-    const mssqlConnection: Omit<Connection, "id"> = { ...makeConnection("my-db", "production"), engine: "mssql" };
+    const mssqlConnection: Omit<Connection, "id" | "createdAt" | "updatedAt"> = {
+      ...makeConnection("my-db", "production"),
+      engine: "mssql",
+    };
 
     const created = await service.create(mssqlConnection);
     assert.equal(created.engine, "mssql");

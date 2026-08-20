@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { VALID_ENGINES, VALID_ENVIRONMENTS } from "../../core/domain/connection.js";
+import { SORTABLE_CONNECTION_FIELDS, VALID_ENGINES, VALID_ENVIRONMENTS } from "../../core/domain/connection.js";
 
 // ponytail: mirrors core/domain/connection.ts connectionSchema — kept
 // separate since it's used purely for wire validation in this transport
@@ -14,16 +14,28 @@ export const connectionSchema = z.object({
   environment: z.enum(VALID_ENVIRONMENTS),
   readOnly: z.boolean().optional(),
   options: z.record(z.string(), z.string()).optional(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
 });
 
-// A new connection has no id yet — the server generates one.
-export const newConnectionSchema = connectionSchema.omit({ id: true });
+// A new connection has no id or timestamps yet — the server generates them.
+export const newConnectionSchema = connectionSchema.omit({ id: true, createdAt: true, updatedAt: true });
 
-// Every field except id can be edited, including name/engine/environment.
-export const connectionUpdateSchema = connectionSchema.omit({ id: true }).partial();
+// Every field except id/timestamps can be edited, including name/engine/environment.
+export const connectionUpdateSchema = connectionSchema.omit({ id: true, createdAt: true, updatedAt: true }).partial();
 
 export const connectionIdParam = z.object({
   id: z.uuid(),
+});
+
+// GET /api/connections query params — everything arrives as a string, so
+// page/pageSize are coerced; sortBy/sortDir/search are optional.
+export const connectionListQuerySchema = z.object({
+  search: z.string().optional(),
+  sortBy: z.enum(SORTABLE_CONNECTION_FIELDS).optional(),
+  sortDir: z.enum(["asc", "desc"]).optional(),
+  page: z.coerce.number().int().positive().optional(),
+  pageSize: z.coerce.number().int().positive().max(100).optional(),
 });
 
 export const errorResponseSchema = z.object({

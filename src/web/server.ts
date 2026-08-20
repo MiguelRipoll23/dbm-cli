@@ -4,6 +4,8 @@ import { serve, type ServerType } from "@hono/node-server";
 import type { ConnectionService } from "../core/services/connection-service.js";
 import type { CredentialStore } from "../core/ports/credential-store.js";
 import { buildApp } from "./app.js";
+import { DaemonManager } from "../adapters/daemon-manager.js";
+import { DaemonClient } from "../adapters/daemon-client.js";
 import type { UnlockBroker } from "./unlock-broker.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,10 +23,10 @@ export type WebServerHandle = {
   close: () => Promise<void>;
 };
 
-// Tries the default port first (so "db-cli web" opens at a predictable URL
+// Tries the default port first (so "dbm web" opens at a predictable URL
 // across runs), but falls back to an OS-assigned ephemeral port if it's
-// already taken — e.g. a "db-cli web" session is already running, or two
-// "db-cli connect" invocations overlap. Each process gets its own server
+// already taken — e.g. a "dbm web" session is already running, or two
+// "dbm connect" invocations overlap. Each process gets its own server
 // and its own UnlockBroker, so there is no cross-process sharing here;
 // falling back just avoids a hard crash on EADDRINUSE.
 function listen(app: Parameters<typeof serve>[0]["fetch"], port: number): Promise<ServerType> {
@@ -45,7 +47,24 @@ export async function startWebServer(
     requestShutdown = resolve;
   });
 
-  const { app, token, broker } = buildApp(connectionService, credentialStore, STATIC_ROOT, () => requestShutdown());
+  // Forward the SPA's prime to a running daemon (if any) so credentials
+  // edited in this foreground session don't leave "dbm connect" serving a
+  // stale cached password. Best-effort: no daemon running -> no-op.
+  const daemonManager = new DaemonManager();
+  const daemonClient = new DaemonClient();
+  const forwardPrime = async (credentials: Parameters<DaemonClient["primeCache"]>[2]) => {
+    const running = await daemonManager.getRunning();
+    if (running) await daemonClient.primeCache(running.baseUrl, running.token, credentials);
+  };
+
+  const { app, token, broker } = buildApp(
+    connectionService,
+    credentialStore,
+    STATIC_ROOT,
+    () => requestShutdown(),
+    undefined,
+    forwardPrime,
+  );
 
   let server: ServerType;
   try {

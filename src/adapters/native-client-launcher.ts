@@ -84,7 +84,7 @@ export class NativeClientLauncher implements ClientLauncher {
             new Error(
               `Client binary "${binary}" not found.\n` +
                 `${config.downloadHint}\n` +
-                `Then run: db-cli client-install ${connection.engine} <path-to-binary>`,
+                `Then run: dbm client-install ${connection.engine} <path-to-binary>`,
             ),
           );
         } else {

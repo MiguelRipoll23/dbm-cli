@@ -1,18 +1,20 @@
 {
-  "name": "db-cli",
-  "version": "0.6.0",
+  "name": "@miguelripoll23/dbm-cli",
+  "version": "1.0.1",
   "type": "module",
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "db-cli": "./dist/index.js",
-    "db": "./dist/index.js"
+    "dbm": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "npm run build:web && tsc && node scripts/copy-web-ui.mjs",
     "build:web": "cd web && pnpm install && pnpm build",
-    "test": "node --test dist/core/services/connection-service.test.js dist/constants/engines.test.js dist/adapters/native-client-launcher.test.js dist/adapters/sqlite-connection-repository.test.js dist/web/schemas/credentials.test.js dist/web/app.test.js"
+    "test": "node --test dist/core/services/connection-service.test.js dist/constants/engines.test.js dist/adapters/native-client-launcher.test.js dist/adapters/sqlite-connection-repository.test.js dist/adapters/daemon-manager.test.js dist/adapters/daemon-client.test.js dist/web/schemas/credentials.test.js dist/web/app.test.js dist/web/password-cache.test.js dist/web/routes/daemon.test.js"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.8",

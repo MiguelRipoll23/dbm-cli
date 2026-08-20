@@ -5,6 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-08-18
+
+### Changed
+
+- Config directory renamed from `~/.dbm-cli/` to `~/.dbm/`, aligning it with the `dbm` executable name.
+
+### Breaking Changes
+
+- Config directory moved from `~/.dbm-cli/` to `~/.dbm/` with **no automatic migration**. Existing connections (`connections.db`), the encrypted vault (`credentials.enc`), and installed client binaries (`clients/`) must be moved manually, e.g. `mv ~/.dbm-cli ~/.dbm`, or they will appear empty.
+
+## [0.9.0] - 2026-07-22
+
+### Added
+
+- On unlock, the web UI now pushes **every** decrypted credential into the daemon's in-memory cache (new `POST /api/daemon/credentials/prime`), KeePassXC-style. While the daemon is running and the vault is unlocked, `dbm connect` to **any** connection resolves straight from the cache without reopening the browser — previously only the specific connection whose unlock triggered the browser got cached. Editing or deleting a credential re-syncs the cache (prime is authoritative — it mirrors the whole vault, so a deleted connection's credential is dropped from the cache immediately instead of lingering until its TTL). The foreground `dbm web` server forwards prime to a running daemon (or no-ops when none is running), so credentials edited there don't leave `dbm connect` serving a stale password. Cached passwords still live in memory only and honor the same 30-minute sliding TTL.
+
+### Changed
+
+- Renamed the tool from `db-cli` to `dbm-cli`: the executable is now `dbm` (was `db-cli`) and all data moved to `~/.dbm-cli/` (was `~/.db-cli/`).
+
+### Breaking Changes
+
+- Config directory moved from `~/.db-cli/` to `~/.dbm-cli/` with **no automatic migration**. Existing connections (`connections.db`), the encrypted vault (`credentials.enc`), and installed client binaries (`clients/`) must be moved manually, e.g. `mv ~/.db-cli ~/.dbm-cli`, or they will appear empty.
+
+## [0.8.0] - 2026-07-21
+
+### Added
+
+- Background daemon (`dbm daemon start|stop|status|restart`), similar in spirit to `systemctl`, that owns the browser-based password-unlock flow and caches decrypted connection passwords **in memory only** (never persisted to disk). `dbm connect` now auto-starts the daemon on first use — repeat connects to the same connection skip opening the browser entirely as long as the daemon is running.
+- Cached passwords expire after 30 minutes of inactivity per connection (sliding TTL), and are always discarded on `daemon stop`/`daemon restart`. This is documented directly in the CLI help text for `daemon`, `daemon stop`, and `connect`.
+- `dbm daemon status` reports whether the daemon is running (PID, port, uptime) and how many passwords are currently cached.
+
+### Changed
+
+- `WebSecretResolver` no longer starts its own per-invocation web server; it now delegates to the daemon (starting it if needed) via a new `DaemonManager`/`DaemonClient` pair of adapters. `dbm web` is unaffected — it remains a one-off foreground session for browsing/editing connections and credentials.
+
+### Fixed
+
+- Web UI credential forms (create-connection, change-credentials, and the connect-time "credential needed" prompt) now trim leading/trailing whitespace from username and password before saving. An untrimmed value previously saved silently and broke engines whose CLI syntax uses whitespace as a token separator — e.g. Oracle's `CONNECT user/pass@host:port/service`, which fails with `SP2-0306: Invalid option` if either field has a stray space.
+
+## [0.7.0] - 2026-07-12
+
+### Added
+
+- Connections now track `createdAt` and `updatedAt` timestamps (ISO-8601), stamped server-side on create/update. Existing `connections.db` files are migrated automatically and idempotently on startup: the two columns are added and backfilled with the current time for any pre-existing row.
+- `GET /api/connections` now accepts `search`, `sortBy` (`name` | `createdAt` | `updatedAt`), `sortDir` (`asc` | `desc`), `page`, and `pageSize` query params, and returns `{ items, total, page, pageSize }` instead of a bare array. Search matches (case-insensitive) across `name`, `host`, and `database`. All filtering/sorting/pagination runs in SQLite — the web UI no longer fetches the full list and filters client-side.
+- Web UI: the connections table has a search box, sortable Name/Created/Modified column headers, and a pagination footer ("Showing X–Y of N" with Previous/Next), all backed by the new query params.
+- Web UI: closing the web UI via the header button now also closes the browser tab (`window.close()`) after the server shuts down, falling back to the existing "you can close this tab" screen in browsers that block script-initiated tab closes.
+
+### Breaking Changes
+
+- `GET /api/connections` response shape changed from `Connection[]` to `{ items: Connection[], total: number, page: number, pageSize: number }`.
+- `ConnectionRepository.list()` and `ConnectionService.list()` now take an optional `ConnectionListQuery` and return a `ConnectionListResult` instead of `Connection[]`.
+
 ## [0.6.0] - 2026-07-10
 
 ### Removed

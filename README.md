@@ -1,6 +1,6 @@
-# db-cli
+# dbm-cli
 
-`db-cli` is a command-line tool for managing and connecting to relational databases across multiple environments. Connection metadata lives in `~/.db-cli/connections.db` (SQLite, no passwords), keyed by a stable id. Credentials (username/password per connection) live encrypted in `~/.db-cli/credentials.enc`, unlocked through a local web UI (`db-cli web`) with a master password. Decryption happens entirely in the browser via WebCrypto — the CLI process never sees the master password or any credential it isn't actively using to connect. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the resolved password injected the way each client expects.
+`dbm-cli` is a command-line tool for managing and connecting to relational databases across multiple environments. Connection metadata lives in `~/.dbm/connections.db` (SQLite, no passwords), keyed by a stable id. Credentials (username/password per connection) live encrypted in `~/.dbm/credentials.enc`, unlocked through a local web UI (`dbm web`) with a master password. Decryption happens entirely in the browser via WebCrypto — the CLI process never sees the master password. While the vault is unlocked, the background daemon caches the decrypted connection credentials in memory only (never written to disk, 30-minute sliding TTL) so repeat connects skip reopening the browser. At connect time it spawns the appropriate official vendor client (`sqlcmd`, `sqlplus`, `mariadb`, or `psql`) with the resolved password injected the way each client expects.
 
 ---
 
@@ -8,7 +8,7 @@
 
 - **Node.js 22+** (uses the built-in `node:sqlite` module)
 - A modern browser (for the local web UI)
-- The relevant vendor client binary available on `PATH` (or installed via `db-cli client-install`) for each engine you intend to use:
+- The relevant vendor client binary available on `PATH` (or installed via `dbm client-install`) for each engine you intend to use:
 
 | Engine     | Required binary |
 |------------|-----------------|
@@ -36,7 +36,7 @@ node ./dist/index.js <command>
 ### Manage connections and credentials (web UI)
 
 ```bash
-db-cli web
+dbm web
 ```
 
 Opens `http://127.0.0.1:4319` in your default browser. On first run you'll be asked to set a master password (this encrypts an empty credentials store). On later runs you unlock with that same master password.
@@ -53,8 +53,8 @@ The master password and every decrypted credential stay in browser memory only �
 ### List all saved connections
 
 ```bash
-db-cli list
-db-cli list --env production   # filter by environment
+dbm list
+dbm list --env production   # filter by environment
 ```
 
 Output is grouped by connection name, showing each environment as a row:
@@ -71,7 +71,7 @@ Output is grouped by connection name, showing each environment as a row:
 ### Create a connection
 
 ```bash
-db-cli create \
+dbm create \
   --name mydb \
   --engine postgres \
   --host localhost \
@@ -80,12 +80,12 @@ db-cli create \
   --environment development
 ```
 
-`create` only saves connection metadata. Run `db-cli web` afterwards to add the credential.
+`create` only saves connection metadata. Run `dbm web` afterwards to add the credential.
 
 ### Update an existing connection
 
 ```bash
-db-cli update mydb development --host newhost --port 5433
+dbm update mydb development --host newhost --port 5433
 ```
 
 `environment` is the second positional argument — it identifies which environment entry to update. Engine cannot be changed via update; delete and recreate if needed.
@@ -95,7 +95,7 @@ Renaming (`--rename`) only affects the connection's stored name; the credential 
 ### Delete a connection
 
 ```bash
-db-cli delete mydb development
+dbm delete mydb development
 ```
 
 Deletes only the specified environment entry. Other environments of the same connection name are unaffected. The associated credential (if any) is left in `credentials.enc` as an orphan — remove it from the web UI if it's no longer needed.
@@ -103,19 +103,21 @@ Deletes only the specified environment entry. Other environments of the same con
 ### Connect to a database
 
 ```bash
-db-cli connect mydb                  # defaults to development
-db-cli connect mydb production       # explicit environment
-db-cli connect mydb -e "SELECT 1"    # run a query non-interactively
+dbm connect mydb                  # defaults to development
+dbm connect mydb production       # explicit environment
+dbm connect mydb -e "SELECT 1"    # run a query non-interactively
 ```
 
 Connecting to `production` requires typing `yes` at a confirmation prompt. If no entry is found for the given environment, available environments are shown.
 
-If a credential is needed, `connect` starts the local web server (if not already running), opens your browser to the unlock screen, and waits. Once you enter the master password, the browser decrypts just that one credential and hands it back to the CLI process — which passes it straight to the database client without ever printing it.
+If a credential is needed, `connect` starts the local web server (if not already running), opens your browser to the unlock screen, and waits. Once you enter the master password, the browser hands the needed credential back to the CLI process — which passes it straight to the database client without ever printing it.
+
+Unlocking is vault-wide, KeePassXC-style: the moment you enter the master password, the browser decrypts the **whole** vault and pushes every credential into the daemon's in-memory cache. While the daemon stays up and the vault is unlocked, `connect` to **any** connection resolves straight from that cache — no browser, no re-prompt — until the daemon stops or a credential's 30-minute idle TTL expires. Editing a credential in the web UI re-syncs the cache. Nothing is persisted beyond the encrypted `credentials.enc` blob.
 
 ### Install database client binaries
 
 ```bash
-db-cli client-install postgres   # download psql to ~/.db-cli/clients/
+dbm client-install postgres   # download psql to ~/.dbm/clients/
 ```
 
 ---
@@ -133,7 +135,7 @@ db-cli client-install postgres   # download psql to ~/.db-cli/clients/
 
 ## Configuration Storage
 
-All files are stored under `~/.db-cli/`:
+All files are stored under `~/.dbm/`:
 
 | File | Contents |
 |------|----------|
@@ -159,7 +161,7 @@ The decrypted plaintext (browser-only) is `{ "<connectionId>": { "username": "..
 
 ## Local API
 
-`db-cli web` exposes a local-only Hono API on `127.0.0.1`, validated with zod. Every route requires an `x-db-cli-token` header with the session token printed when the server starts.
+`dbm web` exposes a local-only Hono API on `127.0.0.1`, validated with zod. Every route requires an `x-dbm-cli-token` header with the session token printed when the server starts.
 
 ---
 

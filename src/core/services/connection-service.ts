@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
-import type { Connection } from "../domain/connection.js";
+import type { Connection, ConnectionListQuery, ConnectionListResult } from "../domain/connection.js";
 import { connectionSchema } from "../domain/connection.js";
 import type { ConnectionRepository } from "../ports/connection-repository.js";
 
 export class ConnectionService {
-  constructor(private readonly repository: ConnectionRepository) {}
+  constructor(
+    private readonly repository: ConnectionRepository,
+    private readonly now: () => string = () => new Date().toISOString(),
+  ) {}
 
-  async list(): Promise<Connection[]> {
-    return this.repository.list();
+  async list(query?: ConnectionListQuery): Promise<ConnectionListResult> {
+    return this.repository.list(query);
   }
 
   async getById(id: string): Promise<Connection | undefined> {
@@ -18,8 +21,9 @@ export class ConnectionService {
     return this.repository.getByName(name, environment);
   }
 
-  async create(connection: Omit<Connection, "id">): Promise<Connection> {
-    const withId: Connection = { ...connection, id: randomUUID() };
+  async create(connection: Omit<Connection, "id" | "createdAt" | "updatedAt">): Promise<Connection> {
+    const timestamp = this.now();
+    const withId: Connection = { ...connection, id: randomUUID(), createdAt: timestamp, updatedAt: timestamp };
     connectionSchema.parse(withId);
     const existing = await this.repository.getByName(withId.name, withId.environment);
     if (existing !== undefined) {
@@ -29,13 +33,19 @@ export class ConnectionService {
     return withId;
   }
 
-  async update(id: string, updates: Partial<Omit<Connection, "id">>): Promise<Connection> {
+  async update(id: string, updates: Partial<Omit<Connection, "id" | "createdAt" | "updatedAt">>): Promise<Connection> {
     const existing = await this.repository.getById(id);
     if (existing === undefined) {
       throw new Error(`Connection "${id}" not found`);
     }
 
-    const merged = connectionSchema.parse({ ...existing, ...updates, id });
+    const merged = connectionSchema.parse({
+      ...existing,
+      ...updates,
+      id,
+      createdAt: existing.createdAt,
+      updatedAt: this.now(),
+    });
 
     if (merged.name !== existing.name || merged.environment !== existing.environment) {
       const collision = await this.repository.getByName(merged.name, merged.environment);

@@ -15,11 +15,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { api } from "@/lib/api";
 
 /**
- * Stops the local db-cli web server via POST /api/shutdown, so the user
- * doesn't need to go back to the terminal and press Ctrl+C. Once the
- * request is sent, the server closes almost immediately — any response
- * (including a network failure, since the socket may already be gone) is
- * treated as success.
+ * Closes the web UI via POST /api/shutdown, so the user doesn't need to go
+ * back to the terminal and press Ctrl+C. In a foreground `dbm web` session
+ * this stops the local server (closing almost immediately — any response,
+ * including a network failure since the socket may already be gone, is
+ * treated as success). When the UI is served by the background daemon the
+ * request is a deliberate no-op (the daemon must survive a stray tab); the
+ * button then only closes the tab.
  */
 export function CloseWebButton() {
   const [open, setOpen] = useState(false);
@@ -32,6 +34,10 @@ export function CloseWebButton() {
       // The server may close the connection before the response finishes —
       // that's still a successful shutdown from the user's point of view.
     }
+    // Auto-close the tab. Browsers only allow window.close() on tabs opened
+    // by script (which is how the CLI opens this one); otherwise it's a
+    // silent no-op and the fallback screen below covers that case.
+    window.close();
     setClosed(true);
   }
 
@@ -65,8 +71,8 @@ export function CloseWebButton() {
           <AlertDialogHeader>
             <AlertDialogTitle>Close the web UI?</AlertDialogTitle>
             <AlertDialogDescription>
-              This stops the local db-cli server. Any "db-cli connect" waiting for a credential will fail
-              immediately instead of timing out.
+              Closes this tab. A foreground "dbm web" server also stops (any "dbm connect" waiting for a
+              credential fails immediately instead of timing out); the background daemon keeps running.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

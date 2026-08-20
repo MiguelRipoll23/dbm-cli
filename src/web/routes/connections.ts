@@ -1,14 +1,23 @@
 import type { Hono } from "hono";
 import type { ConnectionService } from "../../core/services/connection-service.js";
-import { newConnectionSchema, connectionUpdateSchema, connectionIdParam } from "../schemas/connection.js";
+import {
+  newConnectionSchema,
+  connectionUpdateSchema,
+  connectionIdParam,
+  connectionListQuerySchema,
+} from "../schemas/connection.js";
 import { ApiError } from "../errors.js";
 
 // Thin route handlers: validate with zod, delegate to ConnectionService,
 // respond. All business logic lives in the service.
 export function registerConnectionRoutes(app: Hono, connectionService: ConnectionService): void {
   app.get("/api/connections", async (c) => {
-    const connections = await connectionService.list();
-    return c.json(connections, 200);
+    const parsed = connectionListQuerySchema.safeParse(c.req.query());
+    if (!parsed.success) {
+      throw new ApiError(400, "VALIDATION_ERROR", parsed.error.message);
+    }
+    const result = await connectionService.list(parsed.data);
+    return c.json(result, 200);
   });
 
   app.post("/api/connections", async (c) => {

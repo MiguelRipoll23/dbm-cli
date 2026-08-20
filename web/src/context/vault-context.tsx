@@ -42,6 +42,11 @@ export function VaultProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback((next: UnlockedVault) => {
     setVault(next);
+    // Fire-and-forget: seed the daemon cache with every credential so any
+    // connection works while the vault stays unlocked. Failure is non-fatal
+    // (foreground `dbm web` forwards this to a running daemon, or no-ops if
+    // none is running).
+    void api.primeCache(next.credentials).catch(() => {});
   }, []);
 
   const lock = useCallback(() => {
@@ -61,6 +66,8 @@ export function VaultProvider({ children }: { children: ReactNode }) {
       );
       await api.putCredentialsEnvelope(envelope);
       setVault({ ...vault, credentials: nextCredentials });
+      // Keep the daemon cache in sync with edited/added credentials.
+      void api.primeCache(nextCredentials).catch(() => {});
     },
     [vault],
   );

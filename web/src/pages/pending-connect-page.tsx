@@ -30,8 +30,9 @@ type Props = {
 /**
  * Shown after unlocking when the URL is /unlock/:requestId (or a pending
  * connect request is otherwise detected). Resolves the CLI's waiting
- * "connect" call with the one credential it needs, without ever exposing
- * the rest of the vault to it.
+ * "connect" call with the credential it needs. (Note: on unlock the vault
+ * context also primes the daemon's in-memory cache with the whole decrypted
+ * map so later connects skip the browser — see VaultProvider.unlock.)
  */
 export function PendingConnectPage({ requestId, pending }: Props) {
   const { vault, persistCredentials } = useVault();

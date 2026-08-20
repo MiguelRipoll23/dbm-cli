@@ -2,6 +2,7 @@ import type { ConnectionRepository } from "../ports/connection-repository.js";
 import type { SecretResolver } from "../ports/secret-resolver.js";
 import type { ClientLauncher } from "../ports/client-launcher.js";
 import type { ConnectionWithCredentials } from "../domain/connection.js";
+import { UNPAGINATED } from "../domain/connection.js";
 
 export class ConnectService {
   constructor(
@@ -21,7 +22,7 @@ export class ConnectService {
   }
 
   async findEnvironments(name: string): Promise<string[]> {
-    const all = await this.repository.list();
-    return all.filter((c) => c.name === name).map((c) => c.environment);
+    const { items } = await this.repository.list({ pageSize: UNPAGINATED });
+    return items.filter((c) => c.name === name).map((c) => c.environment);
   }
 }

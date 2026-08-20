@@ -1,39 +1,21 @@
-import consola from "consola";
 import type { Connection } from "../core/domain/connection.js";
 import type { Credentials, SecretResolver } from "../core/ports/secret-resolver.js";
-import type { ConnectionService } from "../core/services/connection-service.js";
-import type { CredentialStore } from "../core/ports/credential-store.js";
-import { startWebServer, type WebServerHandle } from "../web/server.js";
-import { openBrowser } from "../web/open-browser.js";
+import type { DaemonManager } from "./daemon-manager.js";
+import type { DaemonClient } from "./daemon-client.js";
 
-// Resolves a single credential by waiting on the browser to decrypt it.
-// The master password and every other credential in credentials.enc stay
-// in the browser tab — this adapter (running in the CLI process the AI
-// agent drives) only ever sees the one {username, password} pair the
-// browser hands back for this specific name:environment, and immediately
-// passes it on to ConnectService -> ClientLauncher without logging it.
+// Resolves a credential via the background daemon (see daemon-manager.ts),
+// starting it on demand if it isn't already running. The daemon owns the
+// browser-unlock flow and an in-memory password cache (routes/daemon.ts),
+// so repeat calls for the same connection skip opening the browser — this
+// adapter never sees the master password or the decrypted envelope itself.
 export class WebSecretResolver implements SecretResolver {
-  private serverHandle: WebServerHandle | undefined;
-
   constructor(
-    private readonly connectionService: ConnectionService,
-    private readonly credentialStore: CredentialStore,
+    private readonly daemonManager: DaemonManager,
+    private readonly daemonClient: DaemonClient,
   ) {}
 
-  private async ensureServer(): Promise<WebServerHandle> {
-    if (!this.serverHandle) {
-      this.serverHandle = await startWebServer(this.connectionService, this.credentialStore);
-    }
-    return this.serverHandle;
-  }
-
   async resolveCredentials(connection: Connection): Promise<Credentials> {
-    const server = await this.ensureServer();
-    const { id, promise } = server.broker.request(connection);
-
-    consola.info(`Waiting for master password in the browser — opening ${server.baseUrl} ...`);
-    openBrowser(`${server.baseUrl}/unlock/${id}?token=${server.token}`);
-
-    return promise;
+    const { baseUrl, token } = await this.daemonManager.ensureStarted();
+    return this.daemonClient.resolveCredentials(baseUrl, token, connection);
   }
 }

@@ -1,7 +1,7 @@
-import type { Connection } from "../domain/connection.js";
+import type { Connection, ConnectionListQuery, ConnectionListResult } from "../domain/connection.js";
 
 export interface ConnectionRepository {
-  list(): Promise<Connection[]>;
+  list(query?: ConnectionListQuery): Promise<ConnectionListResult>;
   getById(id: string): Promise<Connection | undefined>;
   getByName(name: string, environment: string): Promise<Connection | undefined>;
   save(connection: Connection): Promise<void>;

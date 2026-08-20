@@ -8,3 +8,5 @@ export const VALID_ENVIRONMENTS = [
   "production",
   "local",
 ] as const;
+
+export const SORTABLE_CONNECTION_FIELDS = ["name", "createdAt", "updatedAt"] as const;

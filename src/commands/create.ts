@@ -64,7 +64,7 @@ export function makeCreateCommand(connectionService: ConnectionService) {
         });
 
         consola.success(`Connection "${connectionName}" created successfully.`);
-        consola.info(`Run "db-cli web" to add credentials for this connection.`);
+        consola.info(`Run "dbm web" to add credentials for this connection.`);
       } catch (error) {
         consola.error(error instanceof Error ? error.message : String(error));
         process.exit(1);

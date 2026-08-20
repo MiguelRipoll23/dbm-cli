@@ -9,7 +9,9 @@ export function makeWebCommand(connectionService: ConnectionService, credentialS
   return defineCommand({
     meta: {
       name: "web",
-      description: "Open the local web UI to unlock and manage connections and credentials",
+      description:
+        "Open the local web UI to unlock and manage connections and credentials. This is a one-off foreground " +
+        "session — for the background password-caching daemon used by 'connect', see 'dbm daemon'.",
     },
     async run() {
       const server = await startWebServer(connectionService, credentialStore);

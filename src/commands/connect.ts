@@ -8,7 +8,9 @@ export function makeConnectCommand(connectService: ConnectService) {
   return defineCommand({
     meta: {
       name: "connect",
-      description: "Connect to a saved database",
+      description:
+        "Connect to a saved database. The first connect starts a background daemon (see 'dbm daemon') " +
+        "that caches the decrypted password in memory, so later connects to the same connection skip the browser unlock step.",
     },
     args: {
       name: {

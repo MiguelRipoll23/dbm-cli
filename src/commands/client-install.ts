@@ -45,7 +45,7 @@ export function makeClientInstallCommand() {
   return defineCommand({
     meta: {
       name: "client-install",
-      description: "Install a database client binary into the db-cli managed directory",
+      description: "Install a database client binary into the dbm-cli managed directory",
     },
     args: {
       engine: {
@@ -60,7 +60,7 @@ export function makeClientInstallCommand() {
       },
       addToPath: {
         type: "boolean",
-        description: "Add ~/.db-cli/clients to your user PATH permanently",
+        description: "Add ~/.dbm/clients to your user PATH permanently",
         default: false,
       },
     },

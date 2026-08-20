@@ -22,6 +22,11 @@ export const credentialResolveSchema = z.object({
   password: z.string(),
 });
 
+// Bulk prime payload: the whole decrypted credentials map keyed by
+// connection id, pushed by the browser right after unlock so the daemon can
+// serve any connection without reopening the browser.
+export const credentialsPrimeSchema = z.record(z.string(), credentialResolveSchema);
+
 export const pendingUnlockSchema = z
   .object({
     id: z.string(),

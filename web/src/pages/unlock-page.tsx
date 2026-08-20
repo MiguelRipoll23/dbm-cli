@@ -76,7 +76,7 @@ export function UnlockPage({ onUnlocked }: { onUnlocked: () => void }) {
 
   if (state.status === "error") {
     return (
-      <CenteredCard title="Connection error" description="Could not reach the db-cli local server.">
+      <CenteredCard title="Connection error" description="Could not reach the dbm-cli local server.">
         <Alert variant="destructive">
           <AlertCircleIcon />
           <AlertTitle>Error</AlertTitle>

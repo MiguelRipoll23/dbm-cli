@@ -1,5 +1,5 @@
-import type { Connection, ConnectionUpdate } from "@/types/connection";
-import type { CredentialsEnvelope, PendingUnlock } from "@/types/credentials";
+import type { Connection, ConnectionListParams, ConnectionListResult, ConnectionUpdate } from "@/types/connection";
+import type { CredentialsEnvelope, CredentialsMap, PendingUnlock } from "@/types/credentials";
 
 // Simple module-level token holder. The token itself is not a secret in the
 // same sense as the master password: it's a per-launch session credential
@@ -37,7 +37,7 @@ async function request<T>(
   const headers = new Headers(init?.headers);
   headers.set("Content-Type", "application/json");
   if (sessionToken) {
-    headers.set("x-db-cli-token", sessionToken);
+    headers.set("x-dbm-cli-token", sessionToken);
   }
 
   const response = await fetch(path, { ...init, headers });
@@ -63,10 +63,23 @@ async function request<T>(
   return text ? (JSON.parse(text) as T) : undefined;
 }
 
-export const api = {
-  listConnections: () => request<Connection[]>("/api/connections").then((r) => r ?? []),
+const EMPTY_LIST_RESULT: ConnectionListResult = { items: [], total: 0, page: 1, pageSize: 0 };
 
-  createConnection: (connection: Omit<Connection, "id">) =>
+export const api = {
+  listConnections: (params: ConnectionListParams = {}) => {
+    const search = new URLSearchParams();
+    if (params.search) search.set("search", params.search);
+    if (params.sortBy) search.set("sortBy", params.sortBy);
+    if (params.sortDir) search.set("sortDir", params.sortDir);
+    if (params.page) search.set("page", String(params.page));
+    if (params.pageSize) search.set("pageSize", String(params.pageSize));
+    const query = search.toString();
+    return request<ConnectionListResult>(`/api/connections${query ? `?${query}` : ""}`).then(
+      (r) => r ?? EMPTY_LIST_RESULT,
+    );
+  },
+
+  createConnection: (connection: Omit<Connection, "id" | "createdAt" | "updatedAt">) =>
     request<Connection>("/api/connections", {
       method: "POST",
       body: JSON.stringify(connection),
@@ -109,4 +122,20 @@ export const api = {
     }),
 
   shutdown: () => request<void>("/api/shutdown", { method: "POST" }),
+
+  // Pushes the whole decrypted credentials map into the daemon's in-memory
+  // cache so it can serve any connection without reopening the browser. The
+  // foreground `dbm web` server forwards this to a running daemon (or no-ops
+  // if none is running); a legacy 404 is also treated as a no-op.
+  primeCache: async (credentials: CredentialsMap): Promise<void> => {
+    try {
+      await request<void>("/api/daemon/credentials/prime", {
+        method: "POST",
+        body: JSON.stringify(credentials),
+      });
+    } catch (error) {
+      if (error instanceof ApiRequestError && error.status === 404) return;
+      throw error;
+    }
+  },
 };

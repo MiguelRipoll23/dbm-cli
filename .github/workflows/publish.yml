@@ -99,7 +99,7 @@ jobs:
           fi
 
           current_date="$(date -u +%F)"
-          release_header="## ${TAG_NAME} - ${current_date}"
+          release_header="## [${TAG_NAME}] - ${current_date}"
 
           if [ -f CHANGELOG.md ] && grep -Fqx "${release_header}" CHANGELOG.md; then
             echo "Changelog already contains ${release_header}. Skipping changelog update."
@@ -115,7 +115,7 @@ jobs:
             echo "${release_notes_text}"
             echo
             if [ -f CHANGELOG.md ]; then
-              awk 'NR == 1 && $0 == "# Changelog" { next } { print }' CHANGELOG.md
+              awk 'NR == 1 && $0 == "# Changelog" { next } NR == 2 && $0 == "" { next } { print }' CHANGELOG.md
             fi
           } > "${temporary_file_path}"
 
